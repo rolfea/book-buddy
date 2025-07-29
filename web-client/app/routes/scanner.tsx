@@ -1,7 +1,7 @@
 import type { Route } from './+types/home';
 import { Scanner } from '../scanner/scanner';
 
-export function loader({ params }: Route.LoaderArgs) {
+export function clientLoader({ params }: Route.LoaderArgs) {
   const data = { sample: 'test data' };
   return data;
 }
