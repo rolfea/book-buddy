@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Route } from '../+types/root';
 import { BarcodeDetector } from 'barcode-detector/ponyfill';
 
 export function Scanner({ loaderData }: Route.ComponentProps) {
   const [videoTrack, setVideoTrack] = useState(null);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const [capturedFrames, setCapturedFrames] = useState<ImageBitmap[]>([]);
+
   useEffect(() => {
     const getVideoTrack = async () => {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -23,6 +25,40 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
 
     getVideoTrack();
   });
+
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    console.log(`firing effect!`);
+    const canvas = canvasRef.current;
+    const img = capturedFrames.at(-1);
+    if (img && canvas) {
+      canvas.width = getComputedStyle(canvas).width.split('px')[0];
+      canvas.height = getComputedStyle(canvas).height.split('px')[0];
+      let ratio = Math.min(
+        canvas.width / img?.width,
+        canvas.height / img.height,
+      );
+      let x = (canvas.width - img.width * ratio) / 2;
+      let y = (canvas.height - img.height * ratio) / 2;
+
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+      canvas
+        .getContext('2d')
+        .drawImage(
+          img,
+          0,
+          0,
+          img.width,
+          img.height,
+          x,
+          y,
+          img.width * ratio,
+          img.height * ratio,
+        );
+    }
+  }, [capturedFrames]);
 
   const barcodeDetector = new BarcodeDetector({ formats: ['ean_13'] });
   const imageCapture = !!videoTrack ? new ImageCapture(videoTrack) : {};
@@ -44,10 +80,18 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
     [videoStream],
   );
 
+  const grabFrame = async (imageCapture: ImageCapture) => {
+    const capturedFrame = await imageCapture.grabFrame();
+    setCapturedFrames([...capturedFrames, capturedFrame]);
+  };
+
   return (
     <div>
-      <h1>{loaderData?.sample}</h1>
+      <h1>Scan a barcode using your device's camera</h1>
       <video ref={refVideo} autoPlay></video>
+      <button onClick={() => grabFrame(imageCapture)}>Capture Barcode</button>
+
+      <canvas ref={canvasRef}></canvas>
     </div>
   );
 }
