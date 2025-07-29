@@ -6,6 +6,7 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
   const [videoTrack, setVideoTrack] = useState(null);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [capturedFrames, setCapturedFrames] = useState<ImageBitmap[]>([]);
+  const [isBarcode, setIsBarcode] = useState<boolean>(false);
 
   useEffect(() => {
     const getVideoTrack = async () => {
@@ -29,9 +30,16 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    console.log(`firing effect!`);
+    console.log(`scannin'`);
     const canvas = canvasRef.current;
     const img = capturedFrames.at(-1);
+
+    const detectBarcode = async () => {
+      const detected = await barcodeDetector.detect(img);
+      console.log(detected);
+      setIsBarcode(detected.length);
+    };
+
     if (img && canvas) {
       canvas.width = getComputedStyle(canvas).width.split('px')[0];
       canvas.height = getComputedStyle(canvas).height.split('px')[0];
@@ -57,19 +65,13 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
           img.width * ratio,
           img.height * ratio,
         );
+
+      detectBarcode();
     }
   }, [capturedFrames]);
 
   const barcodeDetector = new BarcodeDetector({ formats: ['ean_13'] });
   const imageCapture = !!videoTrack ? new ImageCapture(videoTrack) : {};
-
-  if (!!imageCapture?.track) {
-    console.log(imageCapture);
-  }
-
-  if (!!videoStream) {
-    console.log(videoStream);
-  }
 
   const refVideo = useCallback(
     (node: HTMLVideoElement) => {
@@ -92,6 +94,7 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
       <button onClick={() => grabFrame(imageCapture)}>Capture Barcode</button>
 
       <canvas ref={canvasRef}></canvas>
+      <p>is this a barcode? {isBarcode ? 'yes!' : 'nope!'}</p>
     </div>
   );
 }
