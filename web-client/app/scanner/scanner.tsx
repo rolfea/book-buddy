@@ -3,10 +3,10 @@ import type { Route } from '../+types/root';
 import { BarcodeDetector } from 'barcode-detector/ponyfill';
 
 export function Scanner({ loaderData }: Route.ComponentProps) {
-  const [videoTrack, setVideoTrack] = useState(null);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [capturedFrames, setCapturedFrames] = useState<ImageBitmap[]>([]);
   const [isBarcode, setIsBarcode] = useState<boolean>(false);
+  const [capturedIsbns, setCapturedIsbns] = useState<string[]>([]);
 
   useEffect(() => {
     const getVideoTrack = async () => {
@@ -16,45 +16,45 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
       if (!videoStream) {
         setVideoStream(mediaStream);
       }
-
-      const track = mediaStream.getVideoTracks()[0];
-
-      if (!videoTrack) {
-        setVideoTrack(track);
-      }
     };
 
     getVideoTrack();
   });
 
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     console.log(`scannin'`);
     const canvas = canvasRef.current;
     const img = capturedFrames.at(-1);
 
-    const detectBarcode = async () => {
-      const detected = await barcodeDetector.detect(img);
-      console.log(detected);
-      setIsBarcode(detected.length);
-    };
-
     if (img && canvas) {
-      canvas.width = getComputedStyle(canvas).width.split('px')[0];
-      canvas.height = getComputedStyle(canvas).height.split('px')[0];
-      let ratio = Math.min(
-        canvas.width / img?.width,
-        canvas.height / img.height,
+      const detectBarcode = async () => {
+        const detected = await barcodeDetector.detect(img);
+        console.log(detected);
+        setIsBarcode(!!detected.length);
+        if (detected.length) {
+          setIsBarcode(true);
+          setCapturedIsbns([...capturedIsbns, detected[0].rawValue]);
+          console.log(capturedIsbns);
+        }
+      };
+
+      const canvasStyle: CSSStyleDeclaration = getComputedStyle(canvas);
+      const canvasWidth = Number(canvasStyle.width.split('px')[0]);
+      const canvasHeight = Number(canvasStyle.height.split('px')[0]);
+      const ratio = Math.min(
+        canvasWidth / img?.width,
+        canvasHeight / img.height,
       );
-      let x = (canvas.width - img.width * ratio) / 2;
-      let y = (canvas.height - img.height * ratio) / 2;
+      const x = (canvasWidth - img.width * ratio) / 2;
+      const y = (canvasHeight - img.height * ratio) / 2;
 
-      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+      const canvasContext = canvas.getContext('2d');
+      if (canvasContext) {
+        canvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
 
-      canvas
-        .getContext('2d')
-        .drawImage(
+        canvasContext.drawImage(
           img,
           0,
           0,
@@ -65,12 +65,15 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
           img.width * ratio,
           img.height * ratio,
         );
+      }
 
       detectBarcode();
     }
   }, [capturedFrames]);
 
   const barcodeDetector = new BarcodeDetector({ formats: ['ean_13'] });
+  // TODO - DefinitelyTyped - I think I need "DefinitelyTyped" type lib to get this
+  // @ts-ignore
   const imageCapture = !!videoTrack ? new ImageCapture(videoTrack) : {};
 
   const refVideo = useCallback(
@@ -82,10 +85,14 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
     [videoStream],
   );
 
+  // TODO - DefinitelyTyped
+  // @ts-ignore
   const grabFrame = async (imageCapture: ImageCapture) => {
     const capturedFrame = await imageCapture.grabFrame();
     setCapturedFrames([...capturedFrames, capturedFrame]);
   };
+
+  const capturedIsbnList = capturedIsbns.map((i) => <li>{i}</li>);
 
   return (
     <div>
@@ -95,6 +102,8 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
 
       <canvas ref={canvasRef}></canvas>
       <p>is this a barcode? {isBarcode ? 'yes!' : 'nope!'}</p>
+      <p>Captured ISBNs:</p>
+      <ul>{capturedIsbnList}</ul>
     </div>
   );
 }
