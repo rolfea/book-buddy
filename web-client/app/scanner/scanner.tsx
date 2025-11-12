@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Route } from '../+types/root';
-import { BarcodeDetector } from 'barcode-detector/ponyfill';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Route } from "../+types/root";
+import { BarcodeDetector } from "barcode-detector/ponyfill";
 
 export function Scanner({ loaderData }: Route.ComponentProps) {
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
@@ -9,7 +9,7 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
   const [capturedIsbns, setCapturedIsbns] = useState<string[]>([]);
 
   useEffect(() => {
-    const getVideoTrack = async () => {
+    const getVideoStream = async () => {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: true,
       });
@@ -18,7 +18,7 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
       }
     };
 
-    getVideoTrack();
+    getVideoStream();
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -41,16 +41,13 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
       };
 
       const canvasStyle: CSSStyleDeclaration = getComputedStyle(canvas);
-      const canvasWidth = Number(canvasStyle.width.split('px')[0]);
-      const canvasHeight = Number(canvasStyle.height.split('px')[0]);
-      const ratio = Math.min(
-        canvasWidth / img?.width,
-        canvasHeight / img.height,
-      );
+      const canvasWidth = Number(canvasStyle.width.split("px")[0]);
+      const canvasHeight = Number(canvasStyle.height.split("px")[0]);
+      const ratio = Math.min(canvasWidth / img?.width, canvasHeight / img.height);
       const x = (canvasWidth - img.width * ratio) / 2;
       const y = (canvasHeight - img.height * ratio) / 2;
 
-      const canvasContext = canvas.getContext('2d');
+      const canvasContext = canvas.getContext("2d");
       if (canvasContext) {
         canvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -71,10 +68,11 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
     }
   }, [capturedFrames]);
 
-  const barcodeDetector = new BarcodeDetector({ formats: ['ean_13'] });
+  const barcodeDetector = new BarcodeDetector({ formats: ["ean_13"] });
   // TODO - DefinitelyTyped - I think I need "DefinitelyTyped" type lib to get this
   // @ts-ignore
-  const imageCapture = !!videoTrack ? new ImageCapture(videoTrack) : {};
+  console.log(videoStream);
+  const imageCapture = !!videoStream ? new ImageCapture(videoStream) : {};
 
   const refVideo = useCallback(
     (node: HTMLVideoElement) => {
@@ -101,7 +99,7 @@ export function Scanner({ loaderData }: Route.ComponentProps) {
       <button onClick={() => grabFrame(imageCapture)}>Capture Barcode</button>
 
       <canvas ref={canvasRef}></canvas>
-      <p>is this a barcode? {isBarcode ? 'yes!' : 'nope!'}</p>
+      <p>is this a barcode? {isBarcode ? "yes!" : "nope!"}</p>
       <p>Captured ISBNs:</p>
       <ul>{capturedIsbnList}</ul>
     </div>
