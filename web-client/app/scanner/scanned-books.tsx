@@ -3,6 +3,7 @@ import {
   type DetectedBarcode,
 } from 'barcode-detector/ponyfill';
 import { useEffect, useState } from 'react';
+import { Booklist } from '~/book-list/bookList';
 
 export interface ScannedBooksProps {
   capturedFrames: ImageBitmap[];
@@ -18,7 +19,7 @@ export function ScannedBooks({ capturedFrames }: ScannedBooksProps) {
       const latest = capturedFrames.at(-1);
       const detected = latest ? await barcodeDetector.detect(latest) : null;
       if (!!detected) {
-        const codes = detected.map((d) => d.rawValue);
+        const codes = detected.map((d) => d.rawValue).filter((d) => d);
         setScannedIsbns([...scannedIsbns, ...codes]);
       }
     };
@@ -32,11 +33,15 @@ export function ScannedBooks({ capturedFrames }: ScannedBooksProps) {
 
   const barcodeDetector = new BarcodeDetector({ formats: ['ean_13'] });
 
-  const isbns = scannedIsbns.map((isbn) => <li>{isbn}</li>);
+  const isbns = scannedIsbns.map((isbn) => (
+    <li key={crypto.randomUUID()}>{isbn}</li>
+  ));
   return (
     <div>
       <h1>Scanned Isbns</h1>
       <ul>{isbns}</ul>
+
+      <Booklist scannedIsbns={scannedIsbns} />
     </div>
   );
 }
