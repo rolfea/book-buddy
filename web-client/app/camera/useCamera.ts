@@ -18,27 +18,42 @@ export function useCamera(): UseCameraResult {
 
   // Set up the camera
   useEffect(() => {
+    if (videoStream) return;
+
+    let cancelled = false;
+
     const getVideoTrack = async () => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError(new Error('Camera API not available'));
+        return;
+      }
+
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: true,
         });
-        if (!videoStream) {
-          setVideoStream(mediaStream);
+
+        if (cancelled) {
+          // Cleanup if component unmounted or effect re-ran
+          mediaStream.getTracks().forEach((track) => track.stop());
+          return;
         }
 
-        const track = mediaStream.getVideoTracks()[0];
-
-        if (!videoTrack) {
-          setVideoTrack(track);
-        }
+        setVideoStream(mediaStream);
+        setVideoTrack(mediaStream.getVideoTracks()[0]);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Camera access failed'));
+        if (!cancelled) {
+          setError(err instanceof Error ? err : new Error('Camera access failed'));
+        }
       }
     };
 
     getVideoTrack();
-  }, [videoStream, videoTrack]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [videoStream]);
 
   // Set video source when stream is available
   useEffect(() => {
