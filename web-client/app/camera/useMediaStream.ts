@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-export interface UseCameraResult {
+export interface UseMediaStreamResult {
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  capturedFrames: ImageBitmap[];
-  grabFrame: () => Promise<void>;
+  videoStream: MediaStream | null;
   isReady: boolean;
   error: Error | null;
 }
 
-export function useCamera(): UseCameraResult {
-  const [capturedFrames, setCapturedFrames] = useState<ImageBitmap[]>([]);
-  const [videoTrack, setVideoTrack] = useState<MediaStreamTrack | null>(null);
+export function useMediaStream(): UseMediaStreamResult {
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
@@ -22,7 +19,7 @@ export function useCamera(): UseCameraResult {
 
     let cancelled = false;
 
-    const getVideoTrack = async () => {
+    const getVideoStream = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
         setError(new Error('Camera API not available'));
         return;
@@ -34,13 +31,11 @@ export function useCamera(): UseCameraResult {
         });
 
         if (cancelled) {
-          // Cleanup if component unmounted or effect re-ran
           mediaStream.getTracks().forEach((track) => track.stop());
           return;
         }
 
         setVideoStream(mediaStream);
-        setVideoTrack(mediaStream.getVideoTracks()[0]);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err : new Error('Camera access failed'));
@@ -48,35 +43,32 @@ export function useCamera(): UseCameraResult {
       }
     };
 
-    getVideoTrack();
+    getVideoStream();
 
     return () => {
       cancelled = true;
     };
   }, [videoStream]);
 
-  // Set video source when stream is available
+  // Attach stream to video element
   useEffect(() => {
     if (videoRef.current && videoStream) {
       videoRef.current.srcObject = videoStream;
     }
   }, [videoStream]);
 
-  const grabFrame = useCallback(async () => {
-    if (!videoTrack) return;
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      videoStream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [videoStream]);
 
-    // @ts-ignore - ImageCapture lacks TypeScript types
-    const imageCapture = new ImageCapture(videoTrack);
-    const capturedFrame = await imageCapture.grabFrame();
-    setCapturedFrames((prev) => [...prev, capturedFrame]);
-  }, [videoTrack]);
-
-  const isReady = videoTrack !== null;
+  const isReady = videoStream !== null;
 
   return {
     videoRef,
-    capturedFrames,
-    grabFrame,
+    videoStream,
     isReady,
     error,
   };

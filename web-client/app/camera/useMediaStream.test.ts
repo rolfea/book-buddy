@@ -1,13 +1,13 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { useCamera } from './useCamera';
+import { useMediaStream } from './useMediaStream';
 
-describe('useCamera', () => {
+describe('useMediaStream', () => {
   const mockGetUserMedia = vi.fn();
-  const mockGrabFrame = vi.fn();
-  const mockTrack = { id: 'mock-track' };
+  const mockTrack = { id: 'mock-track', stop: vi.fn() };
   const mockMediaStream = {
     getVideoTracks: () => [mockTrack],
+    getTracks: () => [mockTrack],
   };
 
   beforeEach(() => {
@@ -19,16 +19,10 @@ describe('useCamera', () => {
       writable: true,
       configurable: true,
     });
-
-    mockGrabFrame.mockResolvedValue({ width: 640, height: 480 });
-    // @ts-ignore - ImageCapture needs to be a constructor
-    global.ImageCapture = class {
-      grabFrame = mockGrabFrame;
-    };
   });
 
   it('requests camera permission on mount', async () => {
-    renderHook(() => useCamera());
+    renderHook(() => useMediaStream());
 
     await waitFor(() => {
       expect(mockGetUserMedia).toHaveBeenCalledWith({ video: true });
@@ -36,7 +30,7 @@ describe('useCamera', () => {
   });
 
   it('sets isReady to true when stream is available', async () => {
-    const { result } = renderHook(() => useCamera());
+    const { result } = renderHook(() => useMediaStream());
 
     expect(result.current.isReady).toBe(false);
 
@@ -45,29 +39,16 @@ describe('useCamera', () => {
     });
   });
 
-  it('starts with empty capturedFrames', () => {
-    const { result } = renderHook(() => useCamera());
-
-    expect(result.current.capturedFrames).toEqual([]);
-  });
-
-  it('grabFrame captures a frame and adds to array', async () => {
-    const { result } = renderHook(() => useCamera());
+  it('provides videoStream when ready', async () => {
+    const { result } = renderHook(() => useMediaStream());
 
     await waitFor(() => {
-      expect(result.current.isReady).toBe(true);
+      expect(result.current.videoStream).toBe(mockMediaStream);
     });
-
-    await act(async () => {
-      await result.current.grabFrame();
-    });
-
-    expect(mockGrabFrame).toHaveBeenCalled();
-    expect(result.current.capturedFrames).toHaveLength(1);
   });
 
   it('starts with null error', () => {
-    const { result } = renderHook(() => useCamera());
+    const { result } = renderHook(() => useMediaStream());
 
     expect(result.current.error).toBeNull();
   });
@@ -75,7 +56,7 @@ describe('useCamera', () => {
   it('sets error state when getUserMedia fails', async () => {
     mockGetUserMedia.mockRejectedValueOnce(new Error('Permission denied'));
 
-    const { result } = renderHook(() => useCamera());
+    const { result } = renderHook(() => useMediaStream());
 
     await waitFor(() => {
       expect(result.current.error).not.toBeNull();
@@ -86,7 +67,7 @@ describe('useCamera', () => {
   });
 
   it('provides a videoRef for attaching to video element', () => {
-    const { result } = renderHook(() => useCamera());
+    const { result } = renderHook(() => useMediaStream());
 
     expect(result.current.videoRef).toBeDefined();
     expect(result.current.videoRef.current).toBeNull();
