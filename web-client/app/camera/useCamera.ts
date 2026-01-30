@@ -1,20 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+const CAPTURE_INTERVAL_MS = 500;
+const COOLDOWN_DURATION_MS = 2000;
+
 export interface UseCameraResult {
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  capturedFrames: ImageBitmap[];
-  grabFrame: () => Promise<void>;
+  latestFrame: ImageBitmap | null;
   isReady: boolean;
+  isCapturing: boolean;
+  isCoolingDown: boolean;
   error: Error | null;
+  startCapture: () => void;
+  stopCapture: () => void;
+  triggerCooldown: () => void;
 }
 
 export function useCamera(): UseCameraResult {
-  const [capturedFrames, setCapturedFrames] = useState<ImageBitmap[]>([]);
+  const [latestFrame, setLatestFrame] = useState<ImageBitmap | null>(null);
   const [videoTrack, setVideoTrack] = useState<MediaStreamTrack | null>(null);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isCoolingDown, setIsCoolingDown] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const intervalRef = useRef<number | null>(null);
+  const cooldownTimeoutRef = useRef<number | null>(null);
 
   // Set up the camera
   useEffect(() => {
@@ -34,7 +45,6 @@ export function useCamera(): UseCameraResult {
         });
 
         if (cancelled) {
-          // Cleanup if component unmounted or effect re-ran
           mediaStream.getTracks().forEach((track) => track.stop());
           return;
         }
@@ -68,16 +78,74 @@ export function useCamera(): UseCameraResult {
     // @ts-ignore - ImageCapture lacks TypeScript types
     const imageCapture = new ImageCapture(videoTrack);
     const capturedFrame = await imageCapture.grabFrame();
-    setCapturedFrames((prev) => [...prev, capturedFrame]);
+    setLatestFrame((prev) => {
+      prev?.close(); // Free memory from previous frame
+      return capturedFrame;
+    });
   }, [videoTrack]);
+
+  // Auto-capture interval
+  useEffect(() => {
+    if (isCapturing && !isCoolingDown && videoTrack) {
+      intervalRef.current = window.setInterval(() => {
+        grabFrame();
+      }, CAPTURE_INTERVAL_MS);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isCapturing, isCoolingDown, videoTrack, grabFrame]);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      videoStream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [videoStream]);
+
+  // Cleanup cooldown timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const startCapture = useCallback(() => {
+    setIsCapturing(true);
+  }, []);
+
+  const stopCapture = useCallback(() => {
+    setIsCapturing(false);
+  }, []);
+
+  const triggerCooldown = useCallback(() => {
+    // Clear any existing cooldown to prevent race conditions
+    if (cooldownTimeoutRef.current) {
+      clearTimeout(cooldownTimeoutRef.current);
+    }
+    setIsCoolingDown(true);
+    cooldownTimeoutRef.current = window.setTimeout(() => {
+      setIsCoolingDown(false);
+    }, COOLDOWN_DURATION_MS);
+  }, []);
 
   const isReady = videoTrack !== null;
 
   return {
     videoRef,
-    capturedFrames,
-    grabFrame,
+    latestFrame,
     isReady,
+    isCapturing,
+    isCoolingDown,
     error,
+    startCapture,
+    stopCapture,
+    triggerCooldown,
   };
 }
