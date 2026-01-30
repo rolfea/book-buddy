@@ -1,53 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { ScannedBooks } from '~/scanner/scanned-books';
+import { useCamera } from './useCamera';
 
 export function Camera() {
-  const [capturedFrames, setCapturedFrames] = useState<ImageBitmap[]>([]);
-
-  const [videoTrack, setVideoTrack] = useState<MediaStreamTrack | null>(null);
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
-
-  // not sure if useCallback or useRef is the right move here
-  // so why not both??
-  const refVideo = useCallback(
-    (node: HTMLVideoElement) => {
-      if (node) {
-        node.srcObject = videoStream;
-      }
-    },
-    [videoStream],
-  );
-
+  const { videoRef, capturedFrames, grabFrame, isReady, error } = useCamera();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // set up the camera
-  useEffect(() => {
-    const getVideoTrack = async () => {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
-      if (!videoStream) {
-        setVideoStream(mediaStream);
-      }
-
-      const track = mediaStream.getVideoTracks()[0];
-
-      if (!videoTrack) {
-        setVideoTrack(track);
-      }
-    };
-
-    getVideoTrack();
-  }, [videoStream]);
-
-  // sketchy-ass init of canvas to draw the video frames to
+  // Draw captured frames to canvas
   useEffect(() => {
     const canvas = canvasRef.current;
-    // most recent image captured
     const img = capturedFrames.at(-1);
 
-    // draw it to the canvas
     if (img && canvas) {
       const canvasStyle: CSSStyleDeclaration = getComputedStyle(canvas);
       const canvasWidth = Number(canvasStyle.width.split('px')[0]);
@@ -78,22 +42,14 @@ export function Camera() {
     }
   }, [capturedFrames]);
 
-  // TODO - DefinitelyTyped - I think I need "DefinitelyTyped" type lib to get this
-  // @ts-ignore
-  const imageCapture = !!videoTrack ? new ImageCapture(videoTrack) : {};
-
-  // TODO - DefinitelyTyped
-  // @ts-ignore
-  const grabFrame = async (imageCapture: ImageCapture) => {
-    const capturedFrame = await imageCapture.grabFrame();
-    setCapturedFrames([...capturedFrames, capturedFrame]);
-  };
-
   return (
     <div>
       <h1>I'm a camera!</h1>
-      <video ref={refVideo} autoPlay></video>
-      <button onClick={() => grabFrame(imageCapture)}>Capture Barcode</button>
+      {error && <p>Camera error: {error.message}</p>}
+      <video ref={videoRef} autoPlay></video>
+      <button onClick={grabFrame} disabled={!isReady}>
+        Capture Barcode
+      </button>
 
       <canvas ref={canvasRef}></canvas>
       <ScannedBooks capturedFrames={capturedFrames} />
