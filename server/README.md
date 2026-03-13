@@ -19,8 +19,11 @@ Users can track books they own, maintain wishlists, and see what's on friends' w
 
 ### External Integrations
 
-- Open Library API (book metadata, queried on-demand with caching; ETL deferred until latency/rate limits justify it)
+- Open Library
+  - API (book metadata, queried on-demand with caching
+  - Eventually, keep the book DB in postgres. We can defer this for now, and then once implemented, the API can serve as a fallback
 - Barcode/ISBN scanning via frontend camera API
+- For later, some kind of image processing model for alternatve to ISBN look ups (ie., scan the title page, perform lookup by title)
 
 ## Core Data Model (MVP)
 
@@ -30,10 +33,6 @@ Users can track books they own, maintain wishlists, and see what's on friends' w
 - `removal_reasons` — FK to `user_books.id`, reason field
 
 ### Deferred from Data Model
-
-- **Shared collections** — target architecture: `collections` table, `collection_users` (one-to-many users per collection), `collection_books` replaces `user_books`. Enables shared ownership (e.g., household libraries). Migration path: convert `user_books` → `collection_books`, create default collection per user, add membership tables.
-- `user_relationships` (friends/shared wishlists) — next stage
-- Book location tracking — `user_locations` table (id, user_id, location_name) with FK from `user_books`
 
 ## Authentication
 
@@ -95,20 +94,6 @@ All routes require authentication.
 - Unit tests on service layer functions as initial focus
 - Expand to integration tests as needed
 
-## Known Architectural Risks
-
-## Known Architectural Risks
-
-- Service layer can become bloated as complexity grows — consider splitting into focused sub-services
-- Data source coupling in service layer — stronger abstractions in the data layer would help
-- net/http middleware chaining can get messy — establish wrapper conventions early
-
-## Deferred Features
-
-- **ETL pipeline** — query Open Library on-demand for MVP; build ETL when traffic justifies it
-- **Image-based book lookup** — photo of title page for books without barcodes; post-MVP
-- **Named sub-collections** — ("Currently Reading," "Favorites," etc.); post-MVP
-
 ## Open Questions
 
 - [ ] Auth0 migration trigger — what's the threshold?
@@ -152,12 +137,3 @@ go run ./cmd/server/main.go
 ```bash
 go test ./...
 ```
-
-## Suggested Next Steps
-
-1. Finalize PostgreSQL schema
-2. Set up Go project structure (`cmd/`, `internal/`)
-3. Build a single vertical slice (e.g., books resource) top to bottom: route → auth → service → data layer
-4. Expand horizontally to remaining resources
-5. Wire up data layer with sqlc
-6. Connect and test against PostgreSQL
