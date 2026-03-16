@@ -123,7 +123,7 @@ cp .env.example .env
 ### Run migrations
 
 ```bash
-migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5432/bookbuddy?sslmode=disable" up
+migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" up
 ```
 
 ### Start the server

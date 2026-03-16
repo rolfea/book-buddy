@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -54,6 +55,13 @@ func main() {
 	mux.Handle("POST /user/books", requireAuth(http.HandlerFunc(booksCtrl.Add)))
 	mux.Handle("PATCH /user/books", requireAuth(http.HandlerFunc(booksCtrl.UpdateStatus)))
 	mux.Handle("DELETE /user/books", requireAuth(http.HandlerFunc(booksCtrl.Remove)))
+
+	// Static files for alt-client (registered last — catch-all)
+	staticDir := os.Getenv("ALT_CLIENT_DIR")
+	if staticDir == "" {
+		staticDir = "../alt-client"
+	}
+	mux.Handle("/", http.FileServer(http.Dir(staticDir)))
 
 	handler := middleware.Chain(middleware.Logging, middleware.CORS)(mux)
 

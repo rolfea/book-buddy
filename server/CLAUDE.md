@@ -11,7 +11,7 @@ docker compose up -d
 
 **Run database migrations:**
 ```bash
-migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5432/bookbuddy?sslmode=disable" up
+migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" up
 ```
 
 **Run server:**
