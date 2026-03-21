@@ -1,0 +1,7 @@
+DROP INDEX IF EXISTS idx_user_books_user_id;
+DROP TABLE IF EXISTS removal_reasons;
+DROP TABLE IF EXISTS user_books;
+DROP TYPE IF EXISTS book_status;
+DROP TABLE IF EXISTS books;
+DROP TABLE IF EXISTS users;
+DROP EXTENSION IF EXISTS "pgcrypto";
