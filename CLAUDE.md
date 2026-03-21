@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 book-buddy/
 ├── server/          # Go REST API (see server/CLAUDE.md for full detail)
-├── alt-client/      # Vanilla JS + Web Components client (no build step, served by Go server)
-└── web-client/      # React + TypeScript frontend (React Router v7, Vite)
+├── web-client/      # Vanilla JS + Web Components client (no build step, served by Go server)
+└── archive/         # Archived React + TypeScript frontend (React Router v7, Vite)
 ```
 
 ## Backend (server/)
@@ -27,24 +27,26 @@ sqlc generate                                             # regenerate DB code a
 
 Copy `server/.env.example` → `server/.env` and set `JWT_SECRET` to a random 32+ character string.
 
-## Alt client (alt-client/)
+## Web client (web-client/)
 
-See `alt-client/CLAUDE.md` for full detail. No build step — files are served as static assets directly by the Go server.
+See `web-client/CLAUDE.md` for full detail. No build step — files are served as static assets directly by the Go server.
 
 ```bash
-# The Go server serves alt-client at http://localhost:8080
+# The Go server serves web-client at http://localhost:8080
 cd server && go run ./cmd/server/main.go
 
 # Tests (Node built-in test runner + happy-dom)
-cd alt-client
+cd web-client
 npm install
 npm test
 ```
 
-## Frontend (web-client/)
+## Archive (archive/)
+
+Archived React + TypeScript frontend (React Router v7, Vite). No longer actively maintained.
 
 ```bash
-cd web-client
+cd archive
 npm run dev          # dev server with HMR on :5173
 npm run build        # production build
 npm run typecheck    # TypeScript type checking (react-router typegen + tsc)
@@ -52,12 +54,11 @@ npm run typecheck    # TypeScript type checking (react-router typegen + tsc)
 
 ## Architecture overview
 
-The backend is a Go REST API using standard `net/http` with a custom middleware chain (no external router). There are two clients:
+The backend is a Go REST API using standard `net/http` with a custom middleware chain (no external router). There is one active client:
 
-- **alt-client** — Vanilla JS + Web Components, no build step. The Go server serves it as static files at `http://localhost:8080`. This is the primary client integrated with the server.
-- **web-client** — React Router v7 (Vite), runs separately on `:5173`. Calls the Go API over HTTP.
+- **web-client** — Vanilla JS + Web Components, no build step. The Go server serves it as static files at `http://localhost:8080`. This is the primary client integrated with the server.
 
-Both clients use the Barcode Detection API to scan ISBNs from the device camera.
+The web-client uses the Barcode Detection API to scan ISBNs from the device camera.
 
 Request flow: `Client → Go API → PostgreSQL`
 

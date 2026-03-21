@@ -1,24 +1,24 @@
-# CLAUDE.md — alt-client
+# CLAUDE.md — web-client
 
 Vanilla JS + Web Components client for Book Buddy. **No build step** — files are served directly as static assets by the Go server.
 
 ## Running
 
 ```bash
-# From the repo root — Go server serves both the API and alt-client static files
+# From the repo root — Go server serves both the API and web-client static files
 cd server
 go run ./cmd/server/main.go
 # Open http://localhost:8080
 ```
 
-The Go server uses `http.FileServer` on `"/"` as a catch-all, pointing at `../alt-client`. All real API routes have method-specific patterns (`GET /user/books`, etc.) and take precedence.
+The Go server uses `http.FileServer` on `"/"` as a catch-all, pointing at `../web-client`. All real API routes have method-specific patterns (`GET /user/books`, etc.) and take precedence.
 
 ## Tests
 
 Uses Node's built-in test runner (`node:test`) + `happy-dom` for DOM tests. No bundler involved.
 
 ```bash
-cd alt-client
+cd web-client
 npm install        # installs happy-dom (dev only)
 npm test           # node --test, auto-discovers test/*.test.js
 ```
@@ -41,7 +41,7 @@ npm test           # node --test, auto-discovers test/*.test.js
 ## File structure
 
 ```
-alt-client/
+web-client/
 ├── index.html              # shell; loads app.js as type="module"
 ├── styles.css              # global styles
 ├── app.js                  # hash router + nav rendering

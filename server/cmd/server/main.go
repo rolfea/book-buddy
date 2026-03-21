@@ -56,10 +56,10 @@ func main() {
 	mux.Handle("PATCH /user/books", requireAuth(http.HandlerFunc(booksCtrl.UpdateStatus)))
 	mux.Handle("DELETE /user/books", requireAuth(http.HandlerFunc(booksCtrl.Remove)))
 
-	// Static files for alt-client (registered last — catch-all)
-	staticDir := os.Getenv("ALT_CLIENT_DIR")
+	// Static files for web-client (registered last — catch-all)
+	staticDir := os.Getenv("WEB_CLIENT_DIR")
 	if staticDir == "" {
-		staticDir = "../alt-client"
+		staticDir = "../web-client"
 	}
 	mux.Handle("/", http.FileServer(http.Dir(staticDir)))
 
