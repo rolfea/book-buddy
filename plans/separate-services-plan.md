@@ -1,38 +1,55 @@
 # Plan: Separate Services and Deploy to Render
 
 ## Objective
-Separate the `web-client` and `server` into two distinct services to be deployed on Render.
+Separate the `web-client` and `server` into two distinct services on Render while upgrading security to use **HttpOnly Cookies** instead of `localStorage`.
 - **Backend:** Native Go service (API only).
 - **Frontend:** Static site service with dynamic configuration.
 
 ## 1. Backend Modifications (Go)
-- **Remove Static File Serving:** Update `server/cmd/server/main.go` to remove all code that serves the `web-client` directory. The server will now act strictly as a JSON API.
-- **Dynamic CORS:** Update `server/internal/middleware/cors.go` to respect a `CORS_ALLOWED_ORIGINS` environment variable. This allows the separately hosted frontend to communicate with the API.
+- **Remove Static File Serving:** Update `server/cmd/server/main.go` to remove all code that serves the `web-client` directory.
+- **Improved CORS & Credentials:** 
+  - Update `server/internal/middleware/cors.go` to support subdomain matching.
+  - Set `Access-Control-Allow-Credentials: true`.
+  - **Strict Origin Check:** Disallow `*` when credentials are enabled; only allow origins from `CORS_ALLOWED_ORIGINS`.
+- **HttpOnly Cookie Auth:**
+  - Update `internal/controller/auth.go` to set a cookie named `token` with `HttpOnly`, `Secure`, `SameSite=Lax`, and `Path=/`.
+  - Update `internal/auth/` to read claims from the cookie instead of the `Authorization` header.
+- **CSRF Protection (Simple):** 
+  - Add middleware to verify the presence of a custom header (e.g., `X-BookBuddy-Request`) on all non-GET requests. This ensures the request originated from the app UI.
+- **Health Check:** Add a `GET /health` endpoint.
+- **Static Binary Enforcement:** Build with `CGO_ENABLED=0`.
 
 ## 2. Frontend Modifications (Vanilla JS)
 - **Dynamic Configuration:**
-  - Create `web-client/config.js` (gitignored) to store the API base URL.
-  - Update `web-client/index.html` to load `config.js` before the main application script.
-  - Update `web-client/api.js` to use `window.API_BASE_URL` with a fallback to `http://localhost:8080`.
-- **Config Generation Script:**
-  - Create `web-client/generate-config.js` (Node.js script) to generate `config.js` from the `API_URL` environment variable during the build process.
-- **Local Development Server:**
-  - Add `http-server` as a dev dependency in `web-client/package.json`.
-  - Add a `"dev"` script to serve the frontend locally on port 8081, ensuring ES modules and CORS work correctly.
+  - Create `web-client/config.js` (gitignored) for `window.API_BASE_URL`.
+  - Update `web-client/index.html` to load `config.js`.
+- **HttpOnly Cookie Migration:**
+  - Update `web-client/auth.js` to remove `localStorage` logic (the browser now handles the token automatically).
+  - Update `web-client/api.js` to:
+    - Include `credentials: 'include'` in all `fetch` options.
+    - Automatically inject the CSRF header (`X-BookBuddy-Request: true`) on every request.
+- **Reachability Check & Error UI:**
+  - Update `app.js` to perform a health check on the API at startup.
+  - Display a "Service Unreachable" error page if the API or its health check fails.
 
 ## 3. Deployment Configuration (Render)
+- **Unified Domain Strategy:**
+  - Assign `example.com` to the Frontend and `api.example.com` to the Backend.
+  - Configure the backend's `CORS_ALLOWED_ORIGINS` to the frontend's production URL.
 - **Blueprint (`render.yaml`):**
-  - **Database:** Managed PostgreSQL instance.
+  - **Database:** Managed PostgreSQL.
   - **API Service:** Native Go web service.
-    - Build Command: `cd server && go build -o app ./cmd/server/main.go`
-    - Start Command: `cd server && ./app`
-    - Environment Variables: `DATABASE_URL`, `JWT_SECRET`, and `CORS_ALLOWED_ORIGINS` (mapped to the frontend URL).
+    - Build: `cd server && CGO_ENABLED=0 go build -o app ./cmd/server/main.go`
+    - Start: `cd server && ./app`
   - **Frontend Service:** Static site service.
-    - Build Command: `cd web-client && node generate-config.js`
+    - Build: `cd web-client && node generate-config.js`
     - Publish Directory: `./web-client`
-    - Environment Variables: `API_URL` (mapped to the backend URL).
 
-## Verification Steps
-1. **Local Backend:** Run `go run ./cmd/server/main.go` and verify it no longer serves the UI on port 8080.
-2. **Local Frontend:** Run `cd web-client && npm run dev` and verify it loads on port 8081.
-3. **Integration:** Ensure the local frontend can successfully authenticate and fetch data from the local backend.
+## 4. Local Development Workflow
+- **Makefile Update:** Use `npx http-server` for the frontend on port 8081.
+- **Verification:**
+  1. Start both services.
+  2. Log in and verify (via Browser DevTools) that the `token` cookie is present and marked `HttpOnly`.
+  3. Verify that the `Authorization` header is NO LONGER sent in the request.
+  4. Verify the `X-BookBuddy-Request` header IS sent.
+  5. Verify the frontend shows an error if the backend is offline.
