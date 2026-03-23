@@ -12,6 +12,8 @@ type Config struct {
 	JWTSecret          string
 	JWTExpiryHours     int
 	OpenLibraryBaseURL string
+	CORSAllowedOrigins string
+	SecureCookies      bool
 }
 
 func Load() (*Config, error) {
@@ -26,6 +28,8 @@ func Load() (*Config, error) {
 		JWTSecret:          getEnv("JWT_SECRET", ""),
 		JWTExpiryHours:     jwtExpiry,
 		OpenLibraryBaseURL: getEnv("OPEN_LIBRARY_BASE_URL", "https://openlibrary.org"),
+		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", ""),
+		SecureCookies:      getEnv("SECURE_COOKIES", "true") == "true",
 	}
 
 	if cfg.DatabaseURL == "" {

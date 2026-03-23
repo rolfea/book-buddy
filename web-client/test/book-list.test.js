@@ -105,7 +105,7 @@ describe("book-list", () => {
     );
     await tick();
 
-    assert.equal(patchCall.url, "/user/books");
+    assert.equal(patchCall.url, "/api/user/books");
     assert.equal(patchCall.method, "PATCH");
     assert.deepEqual(patchCall.body, { user_book_id: "ub-1", status: "owned" });
   });
@@ -134,7 +134,7 @@ describe("book-list", () => {
     await tick();
 
     const deleteCall = calls[0];
-    assert.equal(deleteCall.url, "/user/books");
+    assert.equal(deleteCall.url, "/api/user/books");
     assert.equal(deleteCall.method, "DELETE");
     assert.deepEqual(deleteCall.body, { user_book_id: "ub-2" });
   });

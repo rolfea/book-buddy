@@ -1,5 +1,4 @@
-import { request } from "../api.js";
-import { setToken } from "../auth.js";
+import { login, register } from "../auth.js";
 
 class AuthForm extends HTMLElement {
   connectedCallback() {
@@ -30,9 +29,11 @@ class AuthForm extends HTMLElement {
       const password = form.password.value;
 
       try {
-        const path = isRegister ? "/auth/register" : "/auth/login";
-        const data = await request("POST", path, { email, password });
-        setToken(data.token);
+        if (isRegister) {
+          await register(email, password);
+        } else {
+          await login(email, password);
+        }
         location.hash = "#/books";
       } catch (err) {
         errorEl.textContent = err.message;

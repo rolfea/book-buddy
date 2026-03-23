@@ -14,6 +14,7 @@ Separate the `web-client` and `server` into two distinct services on Render whil
 - **HttpOnly Cookie Auth:**
   - Update `internal/controller/auth.go` to set a cookie named `token` with `HttpOnly`, `Secure`, `SameSite=Lax`, and `Path=/`.
   - Update `internal/auth/` to read claims from the cookie instead of the `Authorization` header.
+  - **New Endpoint:** Add `GET /api/auth/me` to return user profile data if a valid cookie is present.
 - **CSRF Protection (Simple):** 
   - Add middleware to verify the presence of a custom header (e.g., `X-BookBuddy-Request`) on all non-GET requests. This ensures the request originated from the app UI.
 - **Health Check:** Add a `GET /health` endpoint.
@@ -24,7 +25,8 @@ Separate the `web-client` and `server` into two distinct services on Render whil
   - Create `web-client/config.js` (gitignored) for `window.API_BASE_URL`.
   - Update `web-client/index.html` to load `config.js`.
 - **HttpOnly Cookie Migration:**
-  - Update `web-client/auth.js` to remove `localStorage` logic (the browser now handles the token automatically).
+  - Update `web-client/auth.js` to remove `localStorage` login logic.
+  - Update `web-client/app.js` (or similar entry point) to call `GET /api/auth/me` on startup to determine if a session is active.
   - Update `web-client/api.js` to:
     - Include `credentials: 'include'` in all `fetch` options.
     - Automatically inject the CSRF header (`X-BookBuddy-Request: true`) on every request.

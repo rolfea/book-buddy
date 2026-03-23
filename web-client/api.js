@@ -1,20 +1,24 @@
-import { getToken } from "./auth.js";
-
-const BASE = "";
+const BASE = (typeof window !== "undefined" ? window.API_BASE_URL : "") || "";
 
 export async function request(method, path, body) {
-  const token = getToken();
-  const headers = { "Content-Type": "application/json" };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+  const headers = {
+    "Content-Type": "application/json",
+    "X-BookBuddy-Request": "true",
+  };
 
-  const opts = { method, headers };
+  const opts = {
+    method,
+    headers,
+    credentials: "include",
+  };
+
   if (body !== undefined) {
     opts.body = JSON.stringify(body);
   }
 
-  const res = await fetch(BASE + path, opts);
+  // Prefix path with /api if not already present
+  const fullPath = path.startsWith("/api") ? path : "/api" + path;
+  const res = await fetch(BASE + fullPath, opts);
 
   if (res.status === 204) return null;
 

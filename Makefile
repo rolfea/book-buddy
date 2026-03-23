@@ -5,19 +5,23 @@ start:
 	cd server && docker compose up -d
 	@sleep 2
 	@test -f server/.env || (cd server && cp .env.example .env && echo "Warning: Please edit server/.env and set JWT_SECRET to a random 32+ character string")
-	@echo "Starting Go API server in background..."
-	cd server && go run ./cmd/server/main.go & \
-		SERVER_PID=$$!; \
-		sleep 3; \
-		echo "Opening browser..."; \
-		if command -v xdg-open > /dev/null; then \
-			xdg-open http://localhost:8080; \
-		elif command -v open > /dev/null; then \
-			open http://localhost:8080; \
-		else \
-			echo "Could not detect browser command. Please open http://localhost:8080 manually."; \
-		fi; \
-		wait $$SERVER_PID
+	@echo "Starting Go API server on port 8080..."
+	(cd server && go run ./cmd/server/main.go) & \
+	SERVER_PID=$$!; \
+	echo "Starting Frontend server on port 8081..." ; \
+	(cd web-client && npx http-server -p 8081) & \
+	FRONTEND_PID=$$!; \
+	sleep 3; \
+	echo "Opening browser to http://localhost:8081..."; \
+	if command -v xdg-open > /dev/null; then \
+		xdg-open http://localhost:8081; \
+	elif command -v open > /dev/null; then \
+		open http://localhost:8081; \
+	else \
+		echo "Could not detect browser command. Please open http://localhost:8081 manually."; \
+	fi; \
+	trap "kill $$SERVER_PID $$FRONTEND_PID" EXIT; \
+	wait $$SERVER_PID $$FRONTEND_PID
 
 test:
 	@echo "Running all tests..."
@@ -32,8 +36,10 @@ docker:
 	cd server && docker compose up -d
 
 stop:
-	@echo "Stopping PostgreSQL..."
+	@echo "Stopping PostgreSQL and other services..."
 	cd server && docker compose down
+	@-pkill -f "go run ./cmd/server/main.go"
+	@-pkill -f "npx http-server"
 
 clean:
 	@echo "Stopping and removing PostgreSQL containers..."
