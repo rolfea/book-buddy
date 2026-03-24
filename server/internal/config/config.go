@@ -28,7 +28,7 @@ func Load() (*Config, error) {
 		JWTSecret:          getEnv("JWT_SECRET", ""),
 		JWTExpiryHours:     jwtExpiry,
 		OpenLibraryBaseURL: getEnv("OPEN_LIBRARY_BASE_URL", "https://openlibrary.org"),
-		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", ""),
+		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:8081"),
 		SecureCookies:      getEnv("SECURE_COOKIES", "true") == "true",
 	}
 

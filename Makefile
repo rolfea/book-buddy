@@ -38,8 +38,14 @@ test:
 	cd server && go test ./...
 
 migrate:
+	@echo "Ensuring migrate CLI is installed..."
+	@if ! command -v migrate > /dev/null; then \
+		echo "Installing golang-migrate..."; \
+		go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest; \
+	fi
 	@echo "Running database migrations for $(APP_ENV) environment..."
-	@if [ "$(APP_ENV)" = "production" ]; then \
+	@export PATH=$$(go env GOPATH)/bin:$$PATH; \
+	if [ "$(APP_ENV)" = "production" ]; then \
 		cd server && migrate -path migrations -database "$$DATABASE_URL" up; \
 	else \
 		cd server && migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" up; \
