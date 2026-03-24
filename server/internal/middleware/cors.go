@@ -8,7 +8,7 @@ import (
 func CORS(allowedOrigins string) Middleware {
 	origins := strings.Split(allowedOrigins, ",")
 	for i, o := range origins {
-		origins[i] = strings.TrimSpace(o)
+		origins[i] = strings.TrimRight(strings.TrimSpace(o), "/")
 	}
 
 	return func(next http.Handler) http.Handler {
