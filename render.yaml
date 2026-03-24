@@ -10,10 +10,12 @@ services:
   - type: web
     name: bookbuddy-api
     env: go
-    buildCommand: cd server && CGO_ENABLED=0 go build -o app ./cmd/server/main.go
-    startCommand: cd server && ./app
+    buildCommand: make build
+    startCommand: make start
     plan: free
     envVars:
+      - key: APP_ENV
+        value: production
       - key: PORT
         value: 8080
       - key: DATABASE_URL

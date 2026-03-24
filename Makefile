@@ -1,6 +1,16 @@
-.PHONY: start test migrate docker stop clean help
+.PHONY: build start test migrate docker stop clean help
+
+APP_ENV ?= local
+
+build:
+	@echo "Building Go server..."
+	cd server && CGO_ENABLED=0 go build -o app ./cmd/server/main.go
 
 start:
+	@echo "Starting Go server..."
+	cd server && ./app
+
+start-local:
 	@echo "Starting PostgreSQL..."
 	cd server && docker compose up -d
 	@sleep 2
@@ -28,8 +38,12 @@ test:
 	cd server && go test ./...
 
 migrate:
-	@echo "Running database migrations..."
-	cd server && migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" up
+	@echo "Running database migrations for $(APP_ENV) environment..."
+	@if [ "$(APP_ENV)" = "production" ]; then \
+		cd server && migrate -path migrations -database "$$DATABASE_URL" up; \
+	else \
+		cd server && migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" up; \
+	fi
 
 docker:
 	@echo "Starting PostgreSQL..."
@@ -47,10 +61,12 @@ clean:
 
 help:
 	@echo "Available targets:"
-	@echo "  make start    - Start PostgreSQL, Go server, and open browser"
-	@echo "  make test     - Run all Go tests"
-	@echo "  make migrate  - Run database migrations"
-	@echo "  make docker   - Start PostgreSQL containers"
-	@echo "  make stop     - Stop PostgreSQL containers"
-	@echo "  make clean    - Stop and remove PostgreSQL containers (including volumes)"
-	@echo "  make help     - Show this help message"
+	@echo "  make build       - Build the server"
+	@echo "  make start       - Start the Go server (for Render)"
+	@echo "  make start-local - Start PostgreSQL, Go server, and open browser"
+	@echo "  make test        - Run all Go tests"
+	@echo "  make migrate     - Run database migrations"
+	@echo "  make docker      - Start PostgreSQL containers"
+	@echo "  make stop        - Stop PostgreSQL containers"
+	@echo "  make clean       - Stop and remove PostgreSQL containers (including volumes)"
+	@echo "  make help        - Show this help message"
