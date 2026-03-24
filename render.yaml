@@ -1,0 +1,45 @@
+services:
+  # Database
+  - type: database
+    name: bookbuddy-db
+    databaseName: bookbuddy
+    user: bookbuddy
+    plan: free
+
+  # Backend API
+  - type: web
+    name: bookbuddy-api
+    env: go
+    buildCommand: cd server && CGO_ENABLED=0 go build -o app ./cmd/server/main.go
+    startCommand: cd server && ./app
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bookbuddy-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        fromService:
+          type: static
+          name: bookbuddy-web
+          property: url
+      - key: SECURE_COOKIES
+        value: true
+
+  # Frontend Web Client
+  - type: static
+    name: bookbuddy-web
+    env: static
+    buildCommand: cd web-client && node generate-config.mjs
+    staticPublishPath: ./web-client
+    plan: free
+    envVars:
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: bookbuddy-api
+          property: url

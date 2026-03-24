@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -40,30 +39,39 @@ func main() {
 	authProvider := auth.NewJWTAuthProvider(cfg.JWTSecret, cfg.JWTExpiryHours)
 
 	booksSvc := service.NewBooksService(store)
-	authCtrl := controller.NewAuthController(store, authProvider)
+	authCtrl := controller.NewAuthController(store, authProvider, cfg.SecureCookies)
 	booksCtrl := controller.NewBooksController(booksSvc)
 
 	mux := http.NewServeMux()
 
+	// Health check
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
+
 	// Auth routes (no auth middleware)
-	mux.HandleFunc("POST /auth/register", authCtrl.Register)
-	mux.HandleFunc("POST /auth/login", authCtrl.Login)
+	mux.HandleFunc("POST /api/auth/register", authCtrl.Register)
+	mux.HandleFunc("POST /api/auth/login", authCtrl.Login)
+	mux.HandleFunc("POST /api/auth/logout", authCtrl.Logout)
 
-	// Book routes (require auth)
+	// Protected routes
 	requireAuth := middleware.RequireAuth(authProvider)
-	mux.Handle("GET /user/books", requireAuth(http.HandlerFunc(booksCtrl.List)))
-	mux.Handle("POST /user/books", requireAuth(http.HandlerFunc(booksCtrl.Add)))
-	mux.Handle("PATCH /user/books", requireAuth(http.HandlerFunc(booksCtrl.UpdateStatus)))
-	mux.Handle("DELETE /user/books", requireAuth(http.HandlerFunc(booksCtrl.Remove)))
+	
+	mux.Handle("GET /api/auth/me", requireAuth(http.HandlerFunc(authCtrl.Me)))
+	
+	mux.Handle("GET /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.List)))
+	mux.Handle("POST /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.Add)))
+	mux.Handle("PATCH /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.UpdateStatus)))
+	mux.Handle("DELETE /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.Remove)))
 
-	// Static files for web-client (registered last — catch-all)
-	staticDir := os.Getenv("WEB_CLIENT_DIR")
-	if staticDir == "" {
-		staticDir = "../web-client"
-	}
-	mux.Handle("/", http.FileServer(http.Dir(staticDir)))
-
-	handler := middleware.Chain(middleware.Logging, middleware.CORS)(mux)
+	// Middleware chain
+	// Order: Logging -> CORS -> CSRF -> Mux
+	handler := middleware.Chain(
+		middleware.Logging,
+		middleware.CORS(cfg.CORSAllowedOrigins),
+		middleware.CSRF,
+	)(mux)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("listening on %s", addr)
