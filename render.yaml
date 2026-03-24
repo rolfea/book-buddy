@@ -11,7 +11,7 @@ services:
     name: bookbuddy-api
     env: go
     buildCommand: make build
-    startCommand: make start
+    startCommand: ./server/migrate-tool && ./server/app
     plan: free
     envVars:
       - key: APP_ENV

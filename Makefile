@@ -3,12 +3,13 @@
 APP_ENV ?= local
 
 build:
-	@echo "Building Go server..."
+	@echo "Building Go server and migration tool..."
 	cd server && CGO_ENABLED=0 go build -o app ./cmd/server/main.go
+	cd server && CGO_ENABLED=0 go build -o migrate-tool ./cmd/migrate/main.go
 
 start:
-	@echo "Starting Go server..."
-	cd server && ./app
+	@echo "Running migrations and starting Go server..."
+	cd server && ./migrate-tool && ./app
 
 start-local:
 	@echo "Starting PostgreSQL..."
@@ -38,17 +39,11 @@ test:
 	cd server && go test ./...
 
 migrate:
-	@echo "Ensuring migrate CLI is installed..."
-	@if ! command -v migrate > /dev/null; then \
-		echo "Installing golang-migrate..."; \
-		go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest; \
-	fi
 	@echo "Running database migrations for $(APP_ENV) environment..."
-	@export PATH=$$(go env GOPATH)/bin:$$PATH; \
-	if [ "$(APP_ENV)" = "production" ]; then \
-		cd server && migrate -path migrations -database "$$DATABASE_URL" up; \
+	@if [ "$(APP_ENV)" = "production" ]; then \
+		cd server && ./migrate-tool -db-url "$$DATABASE_URL" -path migrations up; \
 	else \
-		cd server && migrate -path migrations -database "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" up; \
+		cd server && ./migrate-tool -db-url "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" -path migrations up; \
 	fi
 
 docker:
