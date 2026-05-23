@@ -14,6 +14,7 @@ type Config struct {
 	OpenLibraryBaseURL string
 	CORSAllowedOrigins string
 	SecureCookies      bool
+	Environment        string
 }
 
 func Load() (*Config, error) {
@@ -30,6 +31,7 @@ func Load() (*Config, error) {
 		OpenLibraryBaseURL: getEnv("OPEN_LIBRARY_BASE_URL", "https://openlibrary.org"),
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:8081"),
 		SecureCookies:      getEnv("SECURE_COOKIES", "true") == "true",
+		Environment:        getEnv("APP_ENV", "local"),
 	}
 
 	if cfg.DatabaseURL == "" {

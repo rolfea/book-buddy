@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -36,6 +37,13 @@ func main() {
 	log.Println("database connected")
 
 	store := data.NewStore(db)
+
+	if cfg.Environment == "local" || cfg.Environment == "development" {
+		if err := store.SeedDefaultData(context.Background()); err != nil {
+			log.Printf("Warning: failed to seed database: %v", err)
+		}
+	}
+
 	authProvider := auth.NewJWTAuthProvider(cfg.JWTSecret, cfg.JWTExpiryHours)
 
 	booksSvc := service.NewBooksService(store)
