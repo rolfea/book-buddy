@@ -40,7 +40,7 @@ func (c *AuthController) setAuthCookie(w http.ResponseWriter, token string) {
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   c.secureCookies,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   3600 * 24 * 3, // 3 days
 	})
 }
@@ -119,6 +119,8 @@ func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   c.secureCookies,
+		SameSite: http.SameSiteNoneMode,
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 	})
