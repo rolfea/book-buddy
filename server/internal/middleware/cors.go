@@ -13,6 +13,8 @@ func CORS(allowedOrigins string) Middleware {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("Vary", "Origin")
+
 			origin := r.Header.Get("Origin")
 			if origin != "" {
 				isAllowed := false
@@ -30,6 +32,7 @@ func CORS(allowedOrigins string) Middleware {
 
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-BookBuddy-Request")
+			w.Header().Set("Access-Control-Max-Age", "86400")
 
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)

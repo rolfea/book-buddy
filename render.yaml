@@ -1,47 +1,46 @@
 services:
   # Database
   - type: database
-    name: bookbuddy-db
-    databaseName: bookbuddy
-    user: bookbuddy
+    name: book-buddy-db
+    databaseName: book_buddy_db_jtrt
+    user: book_buddy_db_jtrt_user
     plan: free
 
   # Backend API
   - type: web
-    name: bookbuddy-api
+    name: book-app-server
     env: go
     buildCommand: make build
-    startCommand: ./server/migrate-tool && ./server/app
+    startCommand: make migrate && make start
     plan: free
     envVars:
       - key: APP_ENV
         value: production
-      - key: PORT
-        value: 8080
       - key: DATABASE_URL
         fromDatabase:
-          name: bookbuddy-db
+          name: book-buddy-db
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ALLOWED_ORIGINS
         fromService:
           type: static
-          name: bookbuddy-web
+          name: book-app-web-client
           property: url
       - key: SECURE_COOKIES
         value: true
 
   # Frontend Web Client
   - type: static
-    name: bookbuddy-web
+    name: book-app-web-client
     env: static
-    buildCommand: cd web-client && node generate-config.mjs
-    staticPublishPath: ./web-client
+    rootDir: web-client
+    buildCommand: node generate-config.mjs
+    staticPublishPath: .
     plan: free
     envVars:
       - key: API_BASE_URL
         fromService:
           type: web
-          name: bookbuddy-api
+          name: book-app-server
           property: url
