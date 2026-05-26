@@ -188,6 +188,49 @@ describe("isbn-scanner", () => {
     assert.match(statusEl.textContent, /Scanning/);
   });
 
+  test("markSuccess displays success HUD overlay and auto-resumes scanning", async () => {
+    const scanner = mountScanner();
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Pause scan first (emulating successful detection)
+    scanner._updateScanState(false);
+    assert.strictEqual(scanner._isScanning, false);
+
+    // Call markSuccess
+    scanner.markSuccess("The Pragmatic Programmer");
+
+    const overlay = scanner.shadowRoot.getElementById("overlay");
+    assert.ok(overlay.classList.contains("success"));
+    assert.match(overlay.innerHTML, /Added to Library/);
+    assert.match(overlay.innerHTML, /The Pragmatic Programmer/);
+
+    // Speed up timeout to evaluate scanning resumption
+    await new Promise(resolve => setTimeout(resolve, 2050));
+    assert.strictEqual(scanner._isScanning, true);
+    assert.ok(!overlay.classList.contains("success")); // Overlay should be cleared
+  });
+
+  test("markFailure displays error HUD overlay and auto-resumes scanning", async () => {
+    const scanner = mountScanner();
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Pause scan first
+    scanner._updateScanState(false);
+
+    // Call markFailure
+    scanner.markFailure("Network Timeout");
+
+    const overlay = scanner.shadowRoot.getElementById("overlay");
+    assert.ok(overlay.classList.contains("error"));
+    assert.match(overlay.innerHTML, /Failed to add book/);
+    assert.match(overlay.innerHTML, /Network Timeout/);
+
+    // Speed up timeout to evaluate scanning resumption
+    await new Promise(resolve => setTimeout(resolve, 3550));
+    assert.strictEqual(scanner._isScanning, true);
+    assert.ok(!overlay.classList.contains("error")); // Overlay should be cleared
+  });
+
   test("cleans up streams and timeouts on disconnect", async () => {
     let stopped = false;
     mockStreamTracks = [{
@@ -203,5 +246,6 @@ describe("isbn-scanner", () => {
     assert.strictEqual(stopped, true);
     assert.strictEqual(scanner._isScanning, false);
     assert.strictEqual(scanner._scanTimeoutId, null);
+    assert.strictEqual(scanner._resumeTimeoutId, null);
   });
 });

@@ -2,7 +2,58 @@ const TEMPLATE = `
 <style>
   :host { display: block; }
   .wrap { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
-  video { max-width: 100%; border-radius: 8px; background: #000; width: 400px; height: 300px; }
+  
+  .video-container {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 400px;
+    height: 300px;
+    max-width: 100%;
+    background: #000;
+  }
+  
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10;
+  }
+  
+  .overlay.loading {
+    opacity: 1;
+    background: rgba(26, 26, 46, 0.8);
+  }
+  
+  .overlay.success {
+    opacity: 1;
+    background: rgba(39, 174, 96, 0.85);
+  }
+  
+  .overlay.error {
+    opacity: 1;
+    background: rgba(192, 57, 43, 0.85);
+  }
+  
   .controls { display: flex; gap: 0.5rem; }
   button { padding: 0.5rem 1rem; border: none; border-radius: 6px; background: #1a1a2e; color: #fff; font-size: 0.95rem; cursor: pointer; }
   button:hover { background: #2d2d5e; }
@@ -10,21 +61,17 @@ const TEMPLATE = `
   #toggle-scan:hover { background: #1e8449; }
   p { font-family: system-ui, sans-serif; font-size: 0.9rem; }
   .error { color: #c0392b; }
-  ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
-  li { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 0.4rem 0.75rem; font-family: monospace; display: flex; gap: 0.5rem; align-items: center; }
-  li button { font-size: 0.8rem; padding: 0.25rem 0.5rem; background: #27ae60; }
-  li button:hover { background: #1e8449; }
 </style>
 <div class="wrap">
-  <h2>Scan a Barcode</h2>
-  <video autoplay playsinline></video>
+  <div class="video-container">
+    <video autoplay playsinline></video>
+    <div id="overlay" class="overlay"></div>
+  </div>
   <div class="controls">
     <button id="toggle-scan">Pause Auto-Scanning</button>
     <button id="capture">Capture Frame</button>
   </div>
   <p id="status">Waiting for camera…</p>
-  <p>Detected ISBNs:</p>
-  <ul id="isbn-list"></ul>
 </div>
 `;
 
@@ -36,9 +83,9 @@ class IsbnScanner extends HTMLElement {
     this._stream = null;
     this._detector = null;
     this._imageCapture = null;
-    this._scanned = [];
     this._isScanning = false;
     this._scanTimeoutId = null;
+    this._resumeTimeoutId = null;
     this._wasScanningBeforeHide = false;
     this.scanIntervalMs = 500; // Configurable polling interval
   }
@@ -55,7 +102,6 @@ class IsbnScanner extends HTMLElement {
     }
 
     try {
-      // 1. Optimize Resolution Constraint (1280x720 is ideal for fast mobile detection)
       this._stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: "environment",
@@ -66,7 +112,6 @@ class IsbnScanner extends HTMLElement {
       video.srcObject = this._stream;
       this._detector = new BarcodeDetector({ formats: ["ean_13", "ean_8"] });
       
-      // 2. Cache ImageCapture instance once (reused on every frame to avoid garbage collection stutters)
       const track = this._stream.getVideoTracks()[0];
       if (track && "ImageCapture" in window) {
         this._imageCapture = new ImageCapture(track);
@@ -82,6 +127,7 @@ class IsbnScanner extends HTMLElement {
 
     this.shadowRoot.getElementById("capture").addEventListener("click", () => this._capture(true));
     this.shadowRoot.getElementById("toggle-scan").addEventListener("click", () => {
+      this._clearOverlay();
       if (this._isScanning) {
         this._updateScanState(false);
         const statusEl = this.shadowRoot.getElementById("status");
@@ -94,7 +140,6 @@ class IsbnScanner extends HTMLElement {
       }
     });
 
-    // 4. Tab Visibility optimization: Pause scanning when tab is in background to save battery
     this._onVisibilityChange = () => {
       if (document.hidden && this._isScanning) {
         this._updateScanState(false);
@@ -113,6 +158,10 @@ class IsbnScanner extends HTMLElement {
     if (this._scanTimeoutId) {
       clearTimeout(this._scanTimeoutId);
       this._scanTimeoutId = null;
+    }
+    if (this._resumeTimeoutId) {
+      clearTimeout(this._resumeTimeoutId);
+      this._resumeTimeoutId = null;
     }
     if (this._stream) {
       this._stream.getTracks().forEach((t) => t.stop());
@@ -160,7 +209,6 @@ class IsbnScanner extends HTMLElement {
 
     let imageBitmap = null;
     try {
-      // 3. Canvas-free extraction: Grab direct from ImageCapture or video element
       if (this._imageCapture) {
         imageBitmap = await this._imageCapture.grabFrame();
       } else {
@@ -179,46 +227,65 @@ class IsbnScanner extends HTMLElement {
       statusEl.textContent = `Detected: ${isbn}`;
       statusEl.className = "";
 
-      // Stop scanning on detection
+      // Pause scanning on detection
       this._updateScanState(false);
+      this._showOverlay("loading", `Adding book...<br><span style="font-size: 0.9rem; font-weight: normal; margin-top: 0.5rem;">ISBN: ${isbn}</span>`);
 
-      if (!this._scanned.includes(isbn)) {
-        this._scanned.push(isbn);
-        this._renderList();
-        this.dispatchEvent(new CustomEvent("isbn-detected", {
-          bubbles: true,
-          composed: true,
-          detail: { isbn },
-        }));
-      }
+      this.dispatchEvent(new CustomEvent("isbn-detected", {
+        bubbles: true,
+        composed: true,
+        detail: { isbn },
+      }));
     } catch (err) {
       statusEl.textContent = `Detection error: ${err.message}`;
       statusEl.className = "error";
     } finally {
-      // Explicitly release graphics memory for ImageBitmap
       if (imageBitmap && typeof imageBitmap.close === "function") {
         imageBitmap.close();
       }
     }
   }
 
-  _renderList() {
-    const ul = this.shadowRoot.getElementById("isbn-list");
-    ul.innerHTML = this._scanned
-      .map(
-        (isbn) => `<li>${isbn} <button data-isbn="${isbn}">Add to Library</button></li>`
-      )
-      .join("");
+  // Public HUD controls
+  markSuccess(title) {
+    this._showOverlay("success", `Added to Library!<br><span style="font-size: 0.95rem; font-weight: 400; margin-top: 0.5rem; font-style: italic;">${title}</span>`);
+    
+    if (this._resumeTimeoutId) clearTimeout(this._resumeTimeoutId);
+    this._resumeTimeoutId = setTimeout(() => {
+      this._clearOverlay();
+      this._updateScanState(true);
+      this._scanLoop();
+    }, 2000);
+  }
 
-    ul.querySelectorAll("button").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        this.dispatchEvent(new CustomEvent("isbn-detected", {
-          bubbles: true,
-          composed: true,
-          detail: { isbn: btn.dataset.isbn },
-        }));
-      });
-    });
+  markFailure(errorMsg) {
+    this._showOverlay("error", `Failed to add book<br><span style="font-size: 0.9rem; font-weight: 400; margin-top: 0.5rem;">${errorMsg}</span>`);
+    
+    if (this._resumeTimeoutId) clearTimeout(this._resumeTimeoutId);
+    this._resumeTimeoutId = setTimeout(() => {
+      this._clearOverlay();
+      this._updateScanState(true);
+      this._scanLoop();
+    }, 3500);
+  }
+
+  _showOverlay(type, html) {
+    const overlay = this.shadowRoot.getElementById("overlay");
+    if (!overlay) return;
+    overlay.className = `overlay ${type}`;
+    overlay.innerHTML = html;
+  }
+
+  _clearOverlay() {
+    const overlay = this.shadowRoot.getElementById("overlay");
+    if (overlay) {
+      overlay.className = "overlay";
+      overlay.innerHTML = "";
+    }
+    if (this._resumeTimeoutId) {
+      clearTimeout(this._resumeTimeoutId);
+      this._resumeTimeoutId = null;
+    }
   }
 }
 
