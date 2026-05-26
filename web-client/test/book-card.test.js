@@ -43,6 +43,20 @@ describe("book-card", () => {
     assert.ok(card.innerHTML.includes("wishlisted"));
   });
 
+  test("renders cover image when cover_url is provided", () => {
+    const card = mountCard(makeBook({ cover_url: "https://example.com/cover.jpg" }));
+    const img = card.querySelector("img.cover-thumb");
+    assert.ok(img !== null);
+    assert.equal(img.src, "https://example.com/cover.jpg");
+    assert.equal(card.querySelector(".cover-placeholder"), null);
+  });
+
+  test("renders cover placeholder when cover_url is missing", () => {
+    const card = mountCard(makeBook({ cover_url: "" }));
+    assert.ok(card.querySelector("img.cover-thumb") === null);
+    assert.ok(card.querySelector(".cover-placeholder") !== null);
+  });
+
   test("emits book-status-change with correct detail when 'Mark Owned' is clicked", () => {
     const card = mountCard(makeBook({ status: "wishlisted" }));
     let detail = null;

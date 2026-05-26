@@ -18,12 +18,23 @@ class BookCard extends HTMLElement {
     const cardClass = hasMetadata ? "book-card" : "book-card lookup-failed";
 
     this.className = cardClass;
+
+    let coverHtml = `<div class="cover-placeholder">ISBN</div>`;
+    if (b.cover_url) {
+      coverHtml = `<img src="${escHtml(b.cover_url)}" class="cover-thumb" alt="Cover Image">`;
+    }
+
     this.innerHTML = `
-      <div class="title">${escHtml(titleText)}</div>
-      <div class="author">${escHtml(authorText)}</div>
-      ${!hasMetadata ? `<div class="lookup-badge">Metadata lookup failed</div>` : ""}
-      <div class="isbn">${escHtml(b.isbn)}</div>
-      <div class="status">${escHtml(b.status)}</div>
+      <div class="book-card-main">
+        ${coverHtml}
+        <div class="book-details">
+          <div class="title">${escHtml(titleText)}</div>
+          <div class="author">${escHtml(authorText)}</div>
+          ${!hasMetadata ? `<div class="lookup-badge">Metadata lookup failed</div>` : ""}
+          <div class="isbn">${escHtml(b.isbn)}</div>
+          <div class="status">${escHtml(b.status)}</div>
+        </div>
+      </div>
       <div class="actions">
         ${b.status !== "owned" ? `<button data-action="owned">Mark Owned</button>` : ""}
         ${b.status !== "wishlisted" ? `<button data-action="wishlisted">Wishlist</button>` : ""}

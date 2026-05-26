@@ -43,12 +43,23 @@ class BookList extends HTMLElement {
       for (const b of books) {
         const card = document.createElement("book-card");
         grid.appendChild(card);
+        
+        let coverUrl = "";
+        if (b.cover_url) {
+          if (typeof b.cover_url === "object" && b.cover_url.Valid) {
+            coverUrl = b.cover_url.String;
+          } else if (typeof b.cover_url === "string") {
+            coverUrl = b.cover_url;
+          }
+        }
+
         card.book = {
           id: b.id,
           title: b.title,
           author: b.author,
           isbn: b.isbn,
           status: b.status,
+          cover_url: coverUrl,
         };
       }
       this.innerHTML = "";
