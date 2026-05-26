@@ -14,6 +14,8 @@ import (
 var ErrNotFound = errors.New("not found")
 var ErrBadRequest = errors.New("bad request")
 
+const UnknownBookPlaceholder = "Unknown"
+
 type BooksService struct {
 	store         *data.Store
 	libraryClient data.BookMetadataClient
@@ -32,12 +34,12 @@ func (s *BooksService) List(ctx context.Context, userID string) ([]query.GetUser
 }
 
 func (s *BooksService) LookupBook(ctx context.Context, isbn string) (*query.Book, error) {
-	// 1. Check local DB
+	// 1. Check local DB (only hit cache if we have valid metadata)
 	book, err := s.store.GetBookByISBN(ctx, isbn)
-	if err == nil {
+	if err == nil && book.Title != "" && book.Title != UnknownBookPlaceholder {
 		return &book, nil
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("get book by isbn: %w", err)
 	}
 
@@ -89,7 +91,7 @@ func (s *BooksService) Add(ctx context.Context, userID string, books []AddBookIn
 		var hasLocalMetadata bool
 
 		localBook, err := s.store.GetBookByISBN(ctx, b.ISBN)
-		if err == nil && localBook.Title != "" && localBook.Title != "Unknown" {
+		if err == nil && localBook.Title != "" && localBook.Title != UnknownBookPlaceholder {
 			book = localBook
 			hasLocalMetadata = true
 		}
