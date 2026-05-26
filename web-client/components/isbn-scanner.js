@@ -1,15 +1,15 @@
 const TEMPLATE = `
 <style>
   :host { display: block; }
-  .wrap { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+  .wrap { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; width: 100%; }
   
   .video-container {
     position: relative;
     border-radius: 8px;
     overflow: hidden;
-    width: 400px;
-    height: 300px;
-    max-width: 100%;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 4 / 3;
     background: #000;
   }
   
