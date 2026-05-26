@@ -75,7 +75,7 @@ async function init() {
 
   // 1. Health check
   try {
-    const res = await fetch((window.API_BASE_URL || "") + "/health");
+    const res = await fetch((window.API_BASE_URL || "") + "/status");
     if (!res.ok) throw new Error("API not healthy");
   } catch (err) {
     app.innerHTML = `<div class="error-page">
