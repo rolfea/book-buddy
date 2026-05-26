@@ -140,3 +140,29 @@ func (c *BooksController) Remove(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (c *BooksController) Lookup(w http.ResponseWriter, r *http.Request) {
+	_, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	isbn := r.URL.Query().Get("isbn")
+	if isbn == "" {
+		writeError(w, http.StatusBadRequest, "isbn parameter required")
+		return
+	}
+
+	book, err := c.svc.LookupBook(r.Context(), isbn)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "book not found on OpenLibrary")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, book)
+}

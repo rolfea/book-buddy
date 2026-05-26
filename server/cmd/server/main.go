@@ -46,7 +46,8 @@ func main() {
 
 	authProvider := auth.NewJWTAuthProvider(cfg.JWTSecret, cfg.JWTExpiryHours)
 
-	booksSvc := service.NewBooksService(store)
+	libraryClient := data.NewHTTPBookMetadataClient(cfg.OpenLibraryBaseURL)
+	booksSvc := service.NewBooksService(store, libraryClient)
 	authCtrl := controller.NewAuthController(store, authProvider, cfg.SecureCookies)
 	booksCtrl := controller.NewBooksController(booksSvc)
 
@@ -70,6 +71,7 @@ func main() {
 	
 	mux.Handle("GET /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.List)))
 	mux.Handle("POST /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.Add)))
+	mux.Handle("GET /api/books/lookup", requireAuth(http.HandlerFunc(booksCtrl.Lookup)))
 	mux.Handle("PATCH /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.UpdateStatus)))
 	mux.Handle("DELETE /api/user/books", requireAuth(http.HandlerFunc(booksCtrl.Remove)))
 

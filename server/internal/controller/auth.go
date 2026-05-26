@@ -71,7 +71,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := c.provider.Sign(user.ID, user.Email)
+	token, err := c.provider.Sign(user.ID.String(), user.Email)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not sign token")
 		return
@@ -103,7 +103,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := c.provider.Sign(user.ID, user.Email)
+	token, err := c.provider.Sign(user.ID.String(), user.Email)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not sign token")
 		return

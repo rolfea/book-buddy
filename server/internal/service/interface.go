@@ -23,6 +23,7 @@ type UpdateStatusInput struct {
 type BooksServicer interface {
 	List(ctx context.Context, userID string) ([]query.GetUserBooksRow, error)
 	Add(ctx context.Context, userID string, books []AddBookInput) ([]query.UserBook, error)
+	LookupBook(ctx context.Context, isbn string) (*query.Book, error)
 	UpdateStatus(ctx context.Context, userID string, input UpdateStatusInput) (query.UserBook, error)
 	Remove(ctx context.Context, userID, userBookID string) error
 }

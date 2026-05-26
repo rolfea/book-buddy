@@ -10,7 +10,7 @@ export function render(container) {
     const isbn = e.detail.isbn;
     try {
       await request("POST", "/user/books", {
-        books: [{ isbn, title: "Unknown", author: "Unknown", status: "wishlisted" }],
+        books: [{ isbn, status: "wishlisted" }],
       });
       window.location.hash = "#/books";
     } catch (err) {

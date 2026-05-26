@@ -45,3 +45,7 @@ RETURNING *;
 
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = $1;
+
+-- name: GetBookByISBN :one
+SELECT * FROM books
+WHERE isbn = $1;
