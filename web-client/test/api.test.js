@@ -11,7 +11,27 @@ global.fetch = async (url, opts) => {
   return { ok, status, json: async () => body };
 };
 
-const { request } = await import("../api.js");
+const { request, parseNullString } = await import("../api.js");
+
+describe("parseNullString", () => {
+  test("returns empty string for null, undefined, or empty values", () => {
+    assert.equal(parseNullString(null), "");
+    assert.equal(parseNullString(undefined), "");
+    assert.equal(parseNullString(""), "");
+  });
+
+  test("extracts value from a valid sql.NullString shape object", () => {
+    assert.equal(parseNullString({ String: "https://example.com/a.jpg", Valid: true }), "https://example.com/a.jpg");
+  });
+
+  test("returns empty string from an invalid sql.NullString shape object", () => {
+    assert.equal(parseNullString({ String: "", Valid: false }), "");
+  });
+
+  test("returns the string directly if input is already a raw string", () => {
+    assert.equal(parseNullString("https://example.com/b.jpg"), "https://example.com/b.jpg");
+  });
+});
 
 describe("api.request", () => {
   beforeEach(() => {

@@ -28,3 +28,20 @@ export async function request(method, path, body) {
   }
   return data;
 }
+
+/**
+ * Parses Go's sql.NullString shape into a standard JS string.
+ * Handles both the serialized Go NullString object { String, Valid } and standard strings.
+ * @param {*} val - Value to parse
+ * @returns {string}
+ */
+export function parseNullString(val) {
+  if (!val) return "";
+  if (typeof val === "object" && val.Valid) {
+    return val.String;
+  }
+  if (typeof val === "string") {
+    return val;
+  }
+  return "";
+}

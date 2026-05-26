@@ -1,4 +1,4 @@
-import { request } from "../api.js";
+import { request, parseNullString } from "../api.js";
 import "../components/isbn-scanner.js";
 
 // Session-specific array of scanned books
@@ -68,7 +68,7 @@ export function render(container) {
           bookDetails = {
             title: book.title || "Unknown Title",
             author: book.author || "Unknown Author",
-            coverUrl: book.cover_url || null,
+            coverUrl: parseNullString(book.cover_url) || null,
           };
         }
       } catch (lookupErr) {
