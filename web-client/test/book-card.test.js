@@ -85,4 +85,20 @@ describe("book-card", () => {
     assert.ok(!card.innerHTML.includes("<script>"));
     assert.ok(card.innerHTML.includes("&lt;script&gt;"));
   });
+
+  test("renders placeholder text and lookup-failed class when metadata is missing", () => {
+    const card = mountCard(makeBook({ title: "", author: "" }));
+    assert.ok(card.innerHTML.includes("[Metadata Lookup Failed]"));
+    assert.ok(card.innerHTML.includes("[Unknown Author]"));
+    assert.ok(card.classList.contains("lookup-failed"));
+    assert.ok(card.querySelector(".lookup-badge") !== null);
+  });
+
+  test("renders placeholder text and lookup-failed class when title is 'Unknown'", () => {
+    const card = mountCard(makeBook({ title: "Unknown", author: "" }));
+    assert.ok(card.innerHTML.includes("[Metadata Lookup Failed]"));
+    assert.ok(card.innerHTML.includes("[Unknown Author]"));
+    assert.ok(card.classList.contains("lookup-failed"));
+    assert.ok(card.querySelector(".lookup-badge") !== null);
+  });
 });

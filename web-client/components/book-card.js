@@ -12,10 +12,16 @@ class BookCard extends HTMLElement {
     const b = this._book;
     if (!b) return;
 
-    this.className = "book-card";
+    const hasMetadata = b.title && b.title !== "Unknown" && b.title.trim() !== "";
+    const titleText = hasMetadata ? b.title : "[Metadata Lookup Failed]";
+    const authorText = hasMetadata ? b.author : "[Unknown Author]";
+    const cardClass = hasMetadata ? "book-card" : "book-card lookup-failed";
+
+    this.className = cardClass;
     this.innerHTML = `
-      <div class="title">${escHtml(b.title)}</div>
-      <div class="author">${escHtml(b.author)}</div>
+      <div class="title">${escHtml(titleText)}</div>
+      <div class="author">${escHtml(authorText)}</div>
+      ${!hasMetadata ? `<div class="lookup-badge">Metadata lookup failed</div>` : ""}
       <div class="isbn">${escHtml(b.isbn)}</div>
       <div class="status">${escHtml(b.status)}</div>
       <div class="actions">

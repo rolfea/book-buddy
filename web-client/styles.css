@@ -90,8 +90,23 @@ button.secondary:hover { background: #333; }
   gap: 0.5rem;
 }
 
+.book-card.lookup-failed {
+  border-color: #f5c6cb;
+  background-color: #fdf3f4;
+}
+
 .book-card .title { font-weight: 600; }
+.book-card.lookup-failed .title {
+  color: #721c24;
+  font-style: italic;
+}
+
 .book-card .author { font-size: 0.9rem; color: #555; }
+.book-card.lookup-failed .author {
+  color: #888;
+  font-style: italic;
+}
+
 .book-card .isbn { font-size: 0.8rem; color: #888; font-family: monospace; }
 .book-card .status {
   font-size: 0.8rem;
@@ -99,6 +114,18 @@ button.secondary:hover { background: #333; }
   letter-spacing: 0.05em;
   font-weight: 600;
   color: #1a1a2e;
+}
+
+.book-card .lookup-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #721c24;
+  background: #f8d7da;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  width: fit-content;
+  margin-top: 0.2rem;
+  border: 1px solid #f5c6cb;
 }
 
 .book-card .actions {

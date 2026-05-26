@@ -55,7 +55,16 @@ func NewHTTPBookMetadataClient(baseURL string) *HTTPBookMetadataClient {
 
 func (c *HTTPBookMetadataClient) FetchByISBN(isbn string) (*BookMetadata, error) {
 	url := fmt.Sprintf("%s/api/books?bibkeys=ISBN:%s&format=json&jscmd=data", c.baseURL, isbn)
-	resp, err := c.client.Get(url)
+	
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
+
+	// Set descriptive User-Agent as required by OpenLibrary API policies
+	req.Header.Set("User-Agent", "BookBuddy/1.0 (contact@bookbuddy.app)")
+
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}
