@@ -3,9 +3,11 @@ const TEMPLATE = `
   :host { display: block; }
   .wrap { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
   video { max-width: 100%; border-radius: 8px; background: #000; width: 400px; height: 300px; }
-  canvas { max-width: 100%; border-radius: 8px; border: 1px solid #555; background: #111; width: 400px; height: 300px; }
+  .controls { display: flex; gap: 0.5rem; }
   button { padding: 0.5rem 1rem; border: none; border-radius: 6px; background: #1a1a2e; color: #fff; font-size: 0.95rem; cursor: pointer; }
   button:hover { background: #2d2d5e; }
+  #toggle-scan { background: #27ae60; }
+  #toggle-scan:hover { background: #1e8449; }
   p { font-family: system-ui, sans-serif; font-size: 0.9rem; }
   .error { color: #c0392b; }
   ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
@@ -16,8 +18,10 @@ const TEMPLATE = `
 <div class="wrap">
   <h2>Scan a Barcode</h2>
   <video autoplay playsinline></video>
-  <button id="capture">Capture Frame</button>
-  <canvas></canvas>
+  <div class="controls">
+    <button id="toggle-scan">Pause Auto-Scanning</button>
+    <button id="capture">Capture Frame</button>
+  </div>
   <p id="status">Waiting for camera…</p>
   <p>Detected ISBNs:</p>
   <ul id="isbn-list"></ul>
@@ -31,7 +35,12 @@ class IsbnScanner extends HTMLElement {
     this.shadowRoot.innerHTML = TEMPLATE;
     this._stream = null;
     this._detector = null;
+    this._imageCapture = null;
     this._scanned = [];
+    this._isScanning = false;
+    this._scanTimeoutId = null;
+    this._wasScanningBeforeHide = false;
+    this.scanIntervalMs = 500; // Configurable polling interval
   }
 
   async connectedCallback() {
@@ -46,28 +55,102 @@ class IsbnScanner extends HTMLElement {
     }
 
     try {
-      this._stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      // 1. Optimize Resolution Constraint (1280x720 is ideal for fast mobile detection)
+      this._stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
       video.srcObject = this._stream;
       this._detector = new BarcodeDetector({ formats: ["ean_13", "ean_8"] });
-      statusEl.textContent = "Camera ready. Press Capture Frame to scan.";
+      
+      // 2. Cache ImageCapture instance once (reused on every frame to avoid garbage collection stutters)
+      const track = this._stream.getVideoTracks()[0];
+      if (track && "ImageCapture" in window) {
+        this._imageCapture = new ImageCapture(track);
+      }
+
+      // Start auto-scanning automatically
+      this._updateScanState(true);
+      this._scanLoop();
     } catch (err) {
       statusEl.textContent = `Camera error: ${err.message}`;
       statusEl.className = "error";
     }
 
-    this.shadowRoot.getElementById("capture").addEventListener("click", () => this._capture());
+    this.shadowRoot.getElementById("capture").addEventListener("click", () => this._capture(true));
+    this.shadowRoot.getElementById("toggle-scan").addEventListener("click", () => {
+      if (this._isScanning) {
+        this._updateScanState(false);
+        const statusEl = this.shadowRoot.getElementById("status");
+        if (statusEl) {
+          statusEl.textContent = "Scanning paused.";
+        }
+      } else {
+        this._updateScanState(true);
+        this._scanLoop();
+      }
+    });
+
+    // 4. Tab Visibility optimization: Pause scanning when tab is in background to save battery
+    this._onVisibilityChange = () => {
+      if (document.hidden && this._isScanning) {
+        this._updateScanState(false);
+        this._wasScanningBeforeHide = true;
+      } else if (!document.hidden && this._wasScanningBeforeHide) {
+        this._wasScanningBeforeHide = false;
+        this._updateScanState(true);
+        this._scanLoop();
+      }
+    };
+    document.addEventListener("visibilitychange", this._onVisibilityChange);
   }
 
   disconnectedCallback() {
+    this._isScanning = false;
+    if (this._scanTimeoutId) {
+      clearTimeout(this._scanTimeoutId);
+      this._scanTimeoutId = null;
+    }
     if (this._stream) {
       this._stream.getTracks().forEach((t) => t.stop());
       this._stream = null;
     }
+    this._imageCapture = null;
+    document.removeEventListener("visibilitychange", this._onVisibilityChange);
   }
 
-  async _capture() {
+  _updateScanState(isScanning) {
+    this._isScanning = isScanning;
+    const toggleBtn = this.shadowRoot.getElementById("toggle-scan");
+    const statusEl = this.shadowRoot.getElementById("status");
+    if (toggleBtn) {
+      toggleBtn.textContent = isScanning ? "Pause Auto-Scanning" : "Resume Auto-Scanning";
+    }
+    if (statusEl && isScanning) {
+      statusEl.textContent = "Scanning for barcodes...";
+      statusEl.className = "";
+    }
+  }
+
+  async _scanLoop() {
+    if (!this._isScanning) return;
+
+    try {
+      await this._capture(false);
+    } catch (err) {
+      console.error("Frame capture failed during auto-scan", err);
+    }
+
+    if (this._isScanning) {
+      this._scanTimeoutId = setTimeout(() => this._scanLoop(), this.scanIntervalMs);
+    }
+  }
+
+  async _capture(isManual = false) {
     const video = this.shadowRoot.querySelector("video");
-    const canvas = this.shadowRoot.querySelector("canvas");
     const statusEl = this.shadowRoot.getElementById("status");
 
     if (!this._stream || !this._detector) {
@@ -75,36 +158,29 @@ class IsbnScanner extends HTMLElement {
       return;
     }
 
-    // Draw current video frame to canvas
-    const ctx = canvas.getContext("2d");
-    canvas.width = video.videoWidth || 400;
-    canvas.height = video.videoHeight || 300;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
+    let imageBitmap = null;
     try {
-      // Use ImageCapture if available, otherwise fall back to canvas ImageData
-      let imageBitmap;
-      if ("ImageCapture" in window) {
-        const track = this._stream.getVideoTracks()[0];
-        const ic = new ImageCapture(track);
-        imageBitmap = await ic.grabFrame();
-        // Redraw the grabbed frame for visual feedback
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.width = imageBitmap.width;
-        canvas.height = imageBitmap.height;
-        ctx.drawImage(imageBitmap, 0, 0);
+      // 3. Canvas-free extraction: Grab direct from ImageCapture or video element
+      if (this._imageCapture) {
+        imageBitmap = await this._imageCapture.grabFrame();
       } else {
-        imageBitmap = await createImageBitmap(canvas);
+        imageBitmap = await createImageBitmap(video);
       }
 
       const detected = await this._detector.detect(imageBitmap);
       if (detected.length === 0) {
-        statusEl.textContent = "No barcode detected — try again.";
+        if (isManual) {
+          statusEl.textContent = "No barcode detected — try again.";
+        }
         return;
       }
 
       const isbn = detected[0].rawValue;
       statusEl.textContent = `Detected: ${isbn}`;
+      statusEl.className = "";
+
+      // Stop scanning on detection
+      this._updateScanState(false);
 
       if (!this._scanned.includes(isbn)) {
         this._scanned.push(isbn);
@@ -118,6 +194,11 @@ class IsbnScanner extends HTMLElement {
     } catch (err) {
       statusEl.textContent = `Detection error: ${err.message}`;
       statusEl.className = "error";
+    } finally {
+      // Explicitly release graphics memory for ImageBitmap
+      if (imageBitmap && typeof imageBitmap.close === "function") {
+        imageBitmap.close();
+      }
     }
   }
 
