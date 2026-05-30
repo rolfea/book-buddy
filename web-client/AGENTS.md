@@ -15,10 +15,21 @@ This file provides technical guidance for AI agents working on the Vanilla JS + 
 npm install
 npm test
 
+# Run linters — run these after any JS or CSS changes
+npm run lint        # JS (ESLint) + CSS (Stylelint)
+npm run lint:js     # JS only
+npm run lint:css    # CSS only
+
 # Run frontend (via Go server from repo root)
 make build && go run server/cmd/server/main.go
 # Access at http://localhost:8080
 ```
+
+## Linting
+- **ESLint** (`eslint.config.js`): catches unused variables, undefined globals, and enforces `const`/`===`. Run after any `.js` change.
+- **Stylelint** (`.stylelintrc.json`): catches duplicate selectors and duplicate properties. Run after any `.css` change.
+- **Pre-commit hook**: both linters run automatically via `husky` before every `git commit`. If a commit is blocked, run `npm run lint` to see errors.
+- **Auto-fix**: `npx stylelint styles.css --fix` can resolve most CSS formatting issues automatically.
 
 ## Architecture Notes
 - **Web Components**: No Shadow DOM used, except for `<isbn-scanner>` to isolate camera styles. Components are defined in `components/` and registered globally.

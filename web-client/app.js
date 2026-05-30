@@ -80,7 +80,7 @@ async function init() {
   try {
     const res = await fetch((window.API_BASE_URL || "") + "/status");
     if (!res.ok) throw new Error("API not healthy");
-  } catch (err) {
+  } catch {
     app.innerHTML = `<div class="error-page">
       <h1>Service Unreachable</h1>
       <p>The Book Buddy backend is currently offline. Please try again in a few minutes.</p>
