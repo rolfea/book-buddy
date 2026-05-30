@@ -10,13 +10,11 @@ class AuthForm extends HTMLElement {
         <input type="email" name="email" placeholder="Email" required />
         <input type="password" name="password" placeholder="Password" required />
         <button type="submit">${isRegister ? "Register" : "Login"}</button>
-        <p class="error" hidden></p>
+      <p class="error" hidden></p>
       </form>
-      <p style="margin-top:0.75rem;font-size:0.9rem">
-        ${isRegister
-          ? `Already have an account? <a href="#/login">Login</a>`
-          : `No account? <a href="#/register">Register</a>`}
-      </p>
+      ${isRegister
+        ? `<p class="auth-switch">Already have an account? <a href="#/login">Sign in</a></p>`
+        : `<a href="#/register" class="auth-switch-cta">Create an account</a>`}
     `;
 
     this.querySelector("form").addEventListener("submit", async (e) => {

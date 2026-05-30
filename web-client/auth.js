@@ -6,7 +6,7 @@ export async function checkSession() {
   try {
     currentUser = await request("GET", "/auth/me");
     return currentUser;
-  } catch (err) {
+  } catch {
     currentUser = null;
     return null;
   }

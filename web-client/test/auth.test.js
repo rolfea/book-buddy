@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 // Mock fetch
 let mockResponse = { ok: true, status: 200, body: {} };
-global.fetch = async (url, opts) => {
+global.fetch = async () => {
   const { ok, status, body } = mockResponse;
   return { ok, status, json: async () => body };
 };
@@ -43,9 +43,9 @@ describe("auth", () => {
     // Subsequent checkSession call in login()
     const user = { id: "1", email: "test@test.com" };
     
-    let callCount = 0;
+    let _callCount = 0;
     global.fetch = async (url) => {
-      callCount++;
+      _callCount++;
       if (url.includes("/login")) return { ok: true, status: 200, json: async () => ({ token: "fake" }) };
       return { ok: true, status: 200, json: async () => user };
     };

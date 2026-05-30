@@ -31,7 +31,7 @@ class MockBarcodeDetector {
   constructor(options) {
     this.formats = options?.formats;
   }
-  async detect(image) {
+  async detect(_image) {
     return MockBarcodeDetector.mockDetectResult;
   }
 }
@@ -41,7 +41,7 @@ global.BarcodeDetector = MockBarcodeDetector;
 
 // Mock ImageCapture globally
 class MockImageCapture {
-  constructor(track) {}
+  constructor(_track) {}
   async grabFrame() {
     return { width: 400, height: 300 };
   }

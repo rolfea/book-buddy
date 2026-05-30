@@ -2,23 +2,37 @@ const TEMPLATE = `
 <style>
   :host { display: block; }
   .wrap { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; width: 100%; }
-  
+
   .video-container {
     position: relative;
-    border-radius: 8px;
+    border-radius: 4px;
     overflow: hidden;
     width: 100%;
-    max-width: 480px;
-    aspect-ratio: 4 / 3;
-    background: #000;
+    max-width: 420px;
+    aspect-ratio: 3 / 4;
+    background: #111;
+    border: 1px solid rgba(120, 105, 80, 0.25);
+    box-shadow: 0 4px 20px rgba(44, 36, 22, 0.15);
   }
-  
+
+  /* Neutral viewfinder frame — simple 1px white rect, no glows */
+  .video-container::before {
+    content: '';
+    position: absolute;
+    top: 25%; left: 12%; right: 12%; bottom: 25%;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  }
+
   video {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
-  
+
   .overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -28,39 +42,74 @@ const TEMPLATE = `
     justify-content: center;
     text-align: center;
     padding: 1rem;
-    font-family: system-ui, sans-serif;
+    font-family: 'Lora', Georgia, serif;
     font-weight: 600;
-    font-size: 1.15rem;
+    font-size: 1rem;
     color: #fff;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
-    background: rgba(0, 0, 0, 0.6);
     z-index: 10;
   }
-  
+
   .overlay.loading {
     opacity: 1;
-    background: rgba(26, 26, 46, 0.8);
+    background: rgba(20, 20, 15, 0.82);
   }
-  
+
   .overlay.success {
     opacity: 1;
-    background: rgba(39, 174, 96, 0.85);
+    background: rgba(40, 70, 40, 0.88);
   }
-  
+
   .overlay.error {
     opacity: 1;
-    background: rgba(192, 57, 43, 0.85);
+    background: rgba(90, 30, 30, 0.88);
   }
-  
-  .controls { display: flex; gap: 0.5rem; }
-  button { padding: 0.5rem 1rem; border: none; border-radius: 6px; background: #1a1a2e; color: #fff; font-size: 0.95rem; cursor: pointer; }
-  button:hover { background: #2d2d5e; }
-  #toggle-scan { background: #27ae60; }
-  #toggle-scan:hover { background: #1e8449; }
-  p { font-family: system-ui, sans-serif; font-size: 0.9rem; }
-  .error { color: #c0392b; }
+
+  .controls {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.1rem;
+  }
+
+  button {
+    padding: 0.5rem 1.1rem;
+    border: 1px solid rgba(120, 105, 80, 0.3);
+    border-radius: 3px;
+    background: #faf7f2;
+    color: #2c2416;
+    font-family: 'Lora', Georgia, serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  button:hover {
+    background: #ede8da;
+    border-color: rgba(120, 105, 80, 0.5);
+  }
+
+  #toggle-scan {
+    background: #3c5a3c;
+    color: #faf8f3;
+    border-color: #3c5a3c;
+  }
+
+  #toggle-scan:hover {
+    background: #4a7050;
+    border-color: #4a7050;
+  }
+
+  p {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 0.85rem;
+    color: #6b5c42;
+    font-style: italic;
+  }
+
+  .error { color: #7a2828; font-style: normal; font-weight: 600; }
 </style>
 <div class="wrap">
   <div class="video-container">

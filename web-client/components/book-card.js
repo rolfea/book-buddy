@@ -19,7 +19,14 @@ class BookCard extends HTMLElement {
 
     this.className = cardClass;
 
-    let coverHtml = `<div class="cover-placeholder">ISBN</div>`;
+    let coverHtml = `
+      <div class="cover-placeholder">
+        <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+      </div>
+    `;
     if (b.cover_url) {
       coverHtml = `<img src="${escHtml(b.cover_url)}" class="cover-thumb" alt="Cover Image">`;
     }
@@ -32,7 +39,7 @@ class BookCard extends HTMLElement {
           <div class="author">${escHtml(authorText)}</div>
           ${!hasMetadata ? `<div class="lookup-badge">Metadata lookup failed</div>` : ""}
           <div class="isbn">${escHtml(b.isbn)}</div>
-          <div class="status">${escHtml(b.status)}</div>
+          <div class="status ${escHtml(b.status)}">${escHtml(b.status)}</div>
         </div>
       </div>
       <div class="actions">

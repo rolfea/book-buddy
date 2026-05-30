@@ -1,9 +1,18 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "lint:js": "eslint .",
+    "lint:css": "stylelint styles.css",
+    "lint": "npm run lint:js && npm run lint:css",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "happy-dom": "^16.0.0"
+    "@eslint/js": "^9.28.0",
+    "eslint": "^9.28.0",
+    "happy-dom": "^16.0.0",
+    "husky": "^9.1.7",
+    "stylelint": "^16.20.0",
+    "stylelint-config-standard": "^37.0.0"
   }
 }
