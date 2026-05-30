@@ -56,9 +56,18 @@ export function render(container) {
 
     try {
       // 2. Add to library (Go backend will auto-fetch and cache details)
-      await request("POST", "/user/books", {
+      const res = await request("POST", "/user/books", {
         books: [{ isbn, status: "wishlisted" }],
       });
+
+      let alreadyExisted = false;
+      let previousStatus = "";
+      let userBookId = null;
+      if (res && res.user_books && res.user_books.length > 0) {
+        alreadyExisted = res.user_books[0].already_existed;
+        previousStatus = res.user_books[0].previous_status;
+        userBookId = res.user_books[0].user_book.id;
+      }
 
       // 3. Fetch full book metadata to display locally
       let bookDetails = { title: "Unknown Title", author: "Unknown Author", coverUrl: null };
@@ -82,15 +91,30 @@ export function render(container) {
 
       // 4. Mark success in history and trigger HUD indicator
       const itemIndex = sessionScannedBooks.findIndex(item => item.id === itemId);
+      let listStatus = "success";
+      if (alreadyExisted && previousStatus === "wishlisted") {
+        listStatus = "wishlist-match";
+      } else if (alreadyExisted && previousStatus === "owned") {
+        listStatus = "owned-match";
+      }
+
       if (itemIndex !== -1) {
         sessionScannedBooks[itemIndex] = {
           ...sessionScannedBooks[itemIndex],
           ...bookDetails,
-          status: "success",
+          status: listStatus,
+          userBookId: userBookId,
         };
       }
       renderSessionList(listEl, badgeEl);
-      scanner.markSuccess(bookDetails.title);
+
+      if (listStatus === "wishlist-match") {
+        scanner.markWishlistMatch(bookDetails.title);
+      } else if (listStatus === "owned-match") {
+        scanner.markOwnedMatch(bookDetails.title);
+      } else {
+        scanner.markSuccess(bookDetails.title);
+      }
 
     } catch (err) {
       console.error(`Failed to scan/add book ${isbn}:`, err);
@@ -171,12 +195,57 @@ function renderSessionList(listEl, badgeEl) {
     // Status Text
     let statusText = "Adding...";
     if (item.status === "success") statusText = "Saved";
+    if (item.status === "wishlist-match") statusText = "Wishlist Match! ✨";
+    if (item.status === "owned-match") statusText = "Already Owned 📚";
     if (item.status === "failed") statusText = "Failed";
 
     const statusEl = document.createElement("div");
     statusEl.className = "scan-status";
     statusEl.textContent = statusText;
     itemEl.appendChild(statusEl);
+
+    // Dynamic actions for managing scanned books
+    if (item.userBookId && item.status !== "loading" && item.status !== "failed") {
+      const actionsEl = document.createElement("div");
+      actionsEl.className = "scan-actions";
+
+      // If wishlisted (success or wishlist-match), show "Mark Owned"
+      if (item.status === "success" || item.status === "wishlist-match") {
+        const ownBtn = document.createElement("button");
+        ownBtn.className = "btn-scan-action btn-own";
+        ownBtn.textContent = "Mark Owned";
+        ownBtn.addEventListener("click", async () => {
+          try {
+            await request("PATCH", "/user/books", {
+              user_book_id: item.userBookId,
+              status: "owned",
+            });
+            item.status = "owned-match";
+            renderSessionList(listEl, badgeEl);
+          } catch (err) {
+            alert(`Failed to update status: ${err.message}`);
+          }
+        });
+        actionsEl.appendChild(ownBtn);
+      }
+
+      // Show "Remove" button
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "btn-scan-action btn-remove danger";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", async () => {
+        try {
+          await request("DELETE", "/user/books", { user_book_id: item.userBookId });
+          sessionScannedBooks = sessionScannedBooks.filter(x => x.id !== item.id);
+          renderSessionList(listEl, badgeEl);
+        } catch (err) {
+          alert(`Failed to delete book: ${err.message}`);
+        }
+      });
+      actionsEl.appendChild(removeBtn);
+
+      itemEl.appendChild(actionsEl);
+    }
 
     listEl.appendChild(itemEl);
   }

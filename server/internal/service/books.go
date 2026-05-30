@@ -70,20 +70,40 @@ func (s *BooksService) LookupBook(ctx context.Context, isbn string) (*query.Book
 	return &newBook, nil
 }
 
-func (s *BooksService) Add(ctx context.Context, userID string, books []AddBookInput) ([]query.UserBook, error) {
+func (s *BooksService) Add(ctx context.Context, userID string, books []AddBookInput) ([]AddBookResult, error) {
 	uID, err := uuid.Parse(userID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid user id: %v", ErrBadRequest, err)
 	}
 
-	var results []query.UserBook
+	var results []AddBookResult
 	for _, b := range books {
-		status := query.BookStatusWishlisted
+		targetStatus := query.BookStatusWishlisted
 		switch b.Status {
 		case "owned":
-			status = query.BookStatusOwned
+			targetStatus = query.BookStatusOwned
 		case "removed":
-			status = query.BookStatusRemoved
+			targetStatus = query.BookStatusRemoved
+		}
+
+		// 1. Check if the user already has this book in their library
+		var alreadyExisted bool
+		var previousStatus string
+		var status = targetStatus
+
+		existingUB, err := s.store.GetUserBookByISBN(ctx, query.GetUserBookByISBNParams{
+			UserID: uID,
+			Isbn:   b.ISBN,
+		})
+		if err == nil {
+			alreadyExisted = true
+			previousStatus = string(existingUB.Status)
+			// Preserve the status if it's already owned or wishlisted (prevent scan-demotion)
+			if existingUB.Status == query.BookStatusOwned || existingUB.Status == query.BookStatusWishlisted {
+				status = existingUB.Status
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("check existing user book: %w", err)
 		}
 
 		// Look up existing book or resolve it to prevent overwriting with "Unknown"
@@ -126,7 +146,11 @@ func (s *BooksService) Add(ctx context.Context, userID string, books []AddBookIn
 		if err != nil {
 			return nil, fmt.Errorf("create user book: %w", err)
 		}
-		results = append(results, ub)
+		results = append(results, AddBookResult{
+			UserBook:       ub,
+			AlreadyExisted: alreadyExisted,
+			PreviousStatus: previousStatus,
+		})
 	}
 	return results, nil
 }
