@@ -28,6 +28,7 @@ Add a `user_relationships` table to model friend connections, enabling users to 
 - New routes under `/user/relationships`
 - A `/user/{id}/wishlist` route that returns the target user's wishlisted books, gated by an accepted relationship check in the service layer
 - Pairs naturally with Shared Collections — shared wishlists are a read-only view into a friend's collection
+- **Wishlist Scan Match Integration:** Enhance the barcode scanner logic to check friends' wishlists. When a user scans an ISBN, query if any friends (with accepted relationships) have this book wishlisted, returning their email to trigger a "Wishlist Match!" notification overlay in the camera scanner HUD.
 
 ---
 

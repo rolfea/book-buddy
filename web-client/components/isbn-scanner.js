@@ -67,6 +67,28 @@ const TEMPLATE = `
     background: rgba(90, 30, 30, 0.88);
   }
 
+  .overlay.wishlist-match {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(122, 85, 32, 0.96) 0%, rgba(169, 132, 103, 0.96) 100%);
+    color: #fff;
+  }
+  .overlay.wishlist-match .overlay-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+
+  .overlay.owned-match {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(30, 50, 90, 0.96) 0%, rgba(70, 90, 130, 0.96) 100%);
+    color: #fff;
+  }
+  .overlay.owned-match .overlay-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+
   .controls {
     display: flex;
     gap: 0.6rem;
@@ -323,6 +345,28 @@ class IsbnScanner extends HTMLElement {
       this._updateScanState(true);
       this._scanLoop();
     }, 2000);
+  }
+
+  markWishlistMatch(title) {
+    this._showOverlay("wishlist-match", "Wishlist Match! ✨", title);
+    
+    if (this._resumeTimeoutId) clearTimeout(this._resumeTimeoutId);
+    this._resumeTimeoutId = setTimeout(() => {
+      this._clearOverlay();
+      this._updateScanState(true);
+      this._scanLoop();
+    }, 4000);
+  }
+
+  markOwnedMatch(title) {
+    this._showOverlay("owned-match", "Already Owned! 📚", title);
+    
+    if (this._resumeTimeoutId) clearTimeout(this._resumeTimeoutId);
+    this._resumeTimeoutId = setTimeout(() => {
+      this._clearOverlay();
+      this._updateScanState(true);
+      this._scanLoop();
+    }, 4000);
   }
 
   markFailure(errorMsg) {

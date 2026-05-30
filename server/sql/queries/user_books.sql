@@ -49,3 +49,10 @@ SELECT * FROM users WHERE email = $1;
 -- name: GetBookByISBN :one
 SELECT * FROM books
 WHERE isbn = $1;
+
+-- name: GetUserBookByISBN :one
+SELECT ub.id, ub.user_id, ub.book_id, ub.status, ub.created_at
+FROM user_books ub
+JOIN books b ON b.id = ub.book_id
+WHERE ub.user_id = $1 AND b.isbn = $2;
+

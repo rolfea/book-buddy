@@ -119,6 +119,31 @@ func (q *Queries) GetUserBookByID(ctx context.Context, arg GetUserBookByIDParams
 	return i, err
 }
 
+const getUserBookByISBN = `-- name: GetUserBookByISBN :one
+SELECT ub.id, ub.user_id, ub.book_id, ub.status, ub.created_at
+FROM user_books ub
+JOIN books b ON b.id = ub.book_id
+WHERE ub.user_id = $1 AND b.isbn = $2
+`
+
+type GetUserBookByISBNParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Isbn   string    `json:"isbn"`
+}
+
+func (q *Queries) GetUserBookByISBN(ctx context.Context, arg GetUserBookByISBNParams) (UserBook, error) {
+	row := q.db.QueryRowContext(ctx, getUserBookByISBN, arg.UserID, arg.Isbn)
+	var i UserBook
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.BookID,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getUserBooks = `-- name: GetUserBooks :many
 SELECT ub.id, ub.user_id, ub.book_id, ub.status, ub.created_at,
        b.isbn, b.title, b.author, b.cover_url
