@@ -1,4 +1,6 @@
 import js from "@eslint/js";
+import eslintPluginSecurity from "eslint-plugin-security";
+import eslintPluginNoUnsanitized from "eslint-plugin-no-unsanitized";
 
 // Globals available in all browser source files
 const browserGlobals = {
@@ -45,6 +47,9 @@ const nodeGlobals = {
 
 export default [
   js.configs.recommended,
+  eslintPluginSecurity.configs.recommended,
+  eslintPluginNoUnsanitized.configs.recommended,
+
 
   // ── Browser source files ──────────────────────────────────────────────
   {
@@ -72,6 +77,9 @@ export default [
       "no-var": "error",
       "prefer-const": "error",
       "eqeqeq": ["error", "always"],
+      "security/detect-object-injection": "off",
+      "no-unsanitized/property": "warn",
+      "no-unsanitized/method": "warn",
     },
   },
 

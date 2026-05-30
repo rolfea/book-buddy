@@ -109,7 +109,11 @@ export function render(container) {
 
 function renderSessionList(listEl, badgeEl) {
   if (sessionScannedBooks.length === 0) {
-    listEl.innerHTML = `<div class="empty-state">No books scanned yet in this session. Barcodes will appear here as soon as you scan them.</div>`;
+    listEl.innerHTML = "";
+    const emptyState = document.createElement("div");
+    emptyState.className = "empty-state";
+    emptyState.textContent = "No books scanned yet in this session. Barcodes will appear here as soon as you scan them.";
+    listEl.appendChild(emptyState);
     badgeEl.style.display = "none";
     return;
   }
@@ -117,41 +121,64 @@ function renderSessionList(listEl, badgeEl) {
   badgeEl.textContent = sessionScannedBooks.length;
   badgeEl.style.display = "inline-block";
 
-  listEl.innerHTML = sessionScannedBooks.map(item => {
-    let coverHtml = `
-      <div class="cover-placeholder">
+  listEl.innerHTML = "";
+
+  for (const item of sessionScannedBooks) {
+    const itemEl = document.createElement("div");
+    itemEl.className = `scanned-book-item ${item.status}`;
+
+    // Cover
+    if (item.coverUrl) {
+      const img = document.createElement("img");
+      img.className = "cover-thumb";
+      img.alt = "Cover Image";
+      img.src = item.coverUrl;
+      itemEl.appendChild(img);
+    } else {
+      const placeholder = document.createElement("div");
+      placeholder.className = "cover-placeholder";
+      
+      placeholder.innerHTML = `
         <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
         </svg>
-      </div>
-    `;
-    if (item.coverUrl) {
-      coverHtml = `<img src="${escHtml(item.coverUrl)}" class="cover-thumb" alt="Cover Image">`;
+      `;
+      itemEl.appendChild(placeholder);
     }
 
+    // Book Info
+    const infoEl = document.createElement("div");
+    infoEl.className = "book-info";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "book-title";
+    titleEl.textContent = item.title;
+
+    const authorEl = document.createElement("div");
+    authorEl.className = "book-author";
+    authorEl.textContent = item.author;
+
+    const isbnEl = document.createElement("div");
+    isbnEl.className = "book-isbn";
+    isbnEl.textContent = item.isbn;
+
+    infoEl.appendChild(titleEl);
+    infoEl.appendChild(authorEl);
+    infoEl.appendChild(isbnEl);
+    itemEl.appendChild(infoEl);
+
+    // Status Text
     let statusText = "Adding...";
     if (item.status === "success") statusText = "Saved";
     if (item.status === "failed") statusText = "Failed";
 
-    return `
-      <div class="scanned-book-item ${item.status}">
-        ${coverHtml}
-        <div class="book-info">
-          <div class="book-title">${escHtml(item.title)}</div>
-          <div class="book-author">${escHtml(item.author)}</div>
-          <div class="book-isbn">${escHtml(item.isbn)}</div>
-        </div>
-        <div class="scan-status">${statusText}</div>
-      </div>
-    `;
-  }).join("");
+    const statusEl = document.createElement("div");
+    statusEl.className = "scan-status";
+    statusEl.textContent = statusText;
+    itemEl.appendChild(statusEl);
+
+    listEl.appendChild(itemEl);
+  }
 }
 
-function escHtml(str) {
-  return String(str ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}

@@ -56,7 +56,11 @@ class BookList extends HTMLElement {
       this.innerHTML = "";
       this.appendChild(grid);
     } catch (err) {
-      this.innerHTML = `<p class="error">Failed to load books: ${err.message}</p>`;
+      this.innerHTML = "";
+      const p = document.createElement("p");
+      p.className = "error";
+      p.textContent = `Failed to load books: ${err.message}`;
+      this.appendChild(p);
     }
   }
 }
