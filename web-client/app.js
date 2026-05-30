@@ -22,7 +22,7 @@ function renderNav() {
       <a href="#/books">My Books</a>
       <a href="#/scanner">Scan</a>
       <span class="spacer"></span>
-      <button id="logout-btn" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;font:inherit;text-decoration:underline;">Log out</button>
+      <button id="logout-btn" class="nav-logout">Log out</button>
     `;
     const btn = nav.querySelector("#logout-btn");
     if (btn) {
@@ -33,11 +33,14 @@ function renderNav() {
       });
     }
   } else {
-    nav.innerHTML = `
-      <a href="#/login">Login</a>
-      <a href="#/register">Register</a>
-    `;
+    nav.innerHTML = "";
   }
+
+  // Mark the current route's link as active
+  const currentHash = location.hash.split("?")[0];
+  nav.querySelectorAll("a").forEach((link) => {
+    link.classList.toggle("active", link.getAttribute("href") === currentHash);
+  });
 }
 
 async function navigate() {
