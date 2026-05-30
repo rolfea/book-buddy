@@ -34,13 +34,14 @@ type authResponse struct {
 }
 
 func (c *AuthController) setAuthCookie(w http.ResponseWriter, token string) {
+	// #nosec G124 - Secure is configurable via config to support local mobile testing over HTTP
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   c.secureCookies,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   3600 * 24 * 3, // 3 days
 	})
 }
@@ -114,13 +115,14 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
+	// #nosec G124 - Secure is configurable via config to support local mobile testing over HTTP
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   c.secureCookies,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 	})

@@ -9,13 +9,35 @@ class AuthForm extends HTMLElement {
       <form>
         <input type="email" name="email" placeholder="Email" required />
         <input type="password" name="password" placeholder="Password" required />
-        <button type="submit">${isRegister ? "Register" : "Login"}</button>
-      <p class="error" hidden></p>
+        <button type="submit"></button>
+        <p class="error" hidden></p>
       </form>
-      ${isRegister
-        ? `<p class="auth-switch">Already have an account? <a href="#/login">Sign in</a></p>`
-        : `<a href="#/register" class="auth-switch-cta">Create an account</a>`}
+      <div class="auth-switch-container"></div>
     `;
+
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.textContent = isRegister ? "Register" : "Login";
+
+    const switchContainer = this.querySelector(".auth-switch-container");
+    if (isRegister) {
+      const p = document.createElement("p");
+      p.className = "auth-switch";
+      p.textContent = "Already have an account? ";
+      
+      const link = document.createElement("a");
+      link.href = "#/login";
+      link.textContent = "Sign in";
+      
+      p.appendChild(link);
+      switchContainer.appendChild(p);
+    } else {
+      const link = document.createElement("a");
+      link.href = "#/register";
+      link.className = "auth-switch-cta";
+      link.textContent = "Create an account";
+      
+      switchContainer.appendChild(link);
+    }
 
     this.querySelector("form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -42,3 +64,4 @@ class AuthForm extends HTMLElement {
 }
 
 customElements.define("auth-form", AuthForm);
+

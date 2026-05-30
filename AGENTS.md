@@ -94,6 +94,34 @@ npm test
 - Maintain "no build step" philosophy; do not introduce transpilers or bundlers to the active `web-client`.
 - Components should be registered in `components/*.js` and used as custom tags in pages or the main app.
 
+### Safe HTML Construction & DOM Standards
+To satisfy our security linters (`eslint-plugin-no-unsanitized`) and prevent DOM-based XSS:
+- **Prefer `textContent` for Text**: Never use `innerHTML` to set plain text. Always use `.textContent` or `.innerText` to ensure browser-level escaping.
+  - *Incorrect*: `el.innerHTML = "<span>" + username + "</span>";`
+  - *Correct*: `el.textContent = username;`
+- **Programmatic Element Construction**: For complex dynamic elements, construct nodes programmatically using standard DOM APIs:
+  ```javascript
+  const card = document.createElement("div");
+  card.className = "book-card";
+  const title = document.createElement("h3");
+  title.textContent = book.title;
+  card.appendChild(title);
+  ```
+- **Routing & Dynamic Views**: Do not parse or inject dynamic URLs or hashes into the DOM as raw strings. Resolve them via strict static white-lists mapping hashes to programmatically instantiated component tags.
+- **Escaping Linter Warnings (Static Templates only)**: If you are assigning a purely static HTML template literal with no dynamic variable injection, you may use a linter override comment, but only after verification:
+  ```javascript
+  // eslint-disable-next-line no-unsanitized/property
+  this.innerHTML = `<form><input type="email" required /></form>`;
+  ```
+
+### Security Standards & Automated Checks
+- **Static Analysis (JS)**: The `web-client` project uses ESLint with `eslint-plugin-security` and `eslint-plugin-no-unsanitized` to prevent security hotspots (e.g., regex injections) and DOM-based Cross-Site Scripting (XSS).
+  - Use `npm run lint` in `web-client/` to run the full linter suite.
+  - Avoid assigning raw inputs directly to `innerHTML`. Prefer safe DOM APIs (like `textContent` or `element.setAttribute`) or sanitize inputs explicitly.
+- **Static Analysis (Go)**: Use `gosec` to scan for backend security concerns like SQL injection, unsafe cryptography, or hardcoded credentials.
+  - To scan Go files: run `$(go env GOPATH)/bin/gosec ./server/...` (install via `go install github.com/securego/gosec/v2/cmd/gosec@latest`).
+- **Git Hooks**: Pre-commit verification is automated using Husky (`web-client/.husky/pre-commit`), which runs `npm run lint` before commits are accepted. Always fix critical security errors.
+
 ## Database Schema
 - **users**: Authentication and identity.
 - **books**: Global book metadata (ISBN, Title, Author, Cover URL).

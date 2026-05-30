@@ -110,11 +110,28 @@ const TEMPLATE = `
   }
 
   .error { color: #7a2828; font-style: normal; font-weight: 600; }
+
+  .overlay-title {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .overlay-subtitle {
+    font-size: 0.9rem;
+    font-weight: 400;
+    margin-top: 0.5rem;
+  }
+  .overlay.success .overlay-subtitle {
+    font-size: 0.95rem;
+    font-style: italic;
+  }
 </style>
 <div class="wrap">
   <div class="video-container">
     <video autoplay playsinline></video>
-    <div id="overlay" class="overlay"></div>
+    <div id="overlay" class="overlay">
+      <div class="overlay-title"></div>
+      <div class="overlay-subtitle"></div>
+    </div>
   </div>
   <div class="controls">
     <button id="toggle-scan">Pause Auto-Scanning</button>
@@ -128,6 +145,7 @@ class IsbnScanner extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    // eslint-disable-next-line no-unsanitized/property
     this.shadowRoot.innerHTML = TEMPLATE;
     this._stream = null;
     this._detector = null;
@@ -278,7 +296,7 @@ class IsbnScanner extends HTMLElement {
 
       // Pause scanning on detection
       this._updateScanState(false);
-      this._showOverlay("loading", `Adding book...<br><span style="font-size: 0.9rem; font-weight: normal; margin-top: 0.5rem;">ISBN: ${isbn}</span>`);
+      this._showOverlay("loading", "Adding book...", `ISBN: ${isbn}`);
 
       this.dispatchEvent(new CustomEvent("isbn-detected", {
         bubbles: true,
@@ -297,7 +315,7 @@ class IsbnScanner extends HTMLElement {
 
   // Public HUD controls
   markSuccess(title) {
-    this._showOverlay("success", `Added to Library!<br><span style="font-size: 0.95rem; font-weight: 400; margin-top: 0.5rem; font-style: italic;">${title}</span>`);
+    this._showOverlay("success", "Added to Library!", title);
     
     if (this._resumeTimeoutId) clearTimeout(this._resumeTimeoutId);
     this._resumeTimeoutId = setTimeout(() => {
@@ -308,7 +326,7 @@ class IsbnScanner extends HTMLElement {
   }
 
   markFailure(errorMsg) {
-    this._showOverlay("error", `Failed to add book<br><span style="font-size: 0.9rem; font-weight: 400; margin-top: 0.5rem;">${errorMsg}</span>`);
+    this._showOverlay("error", "Failed to add book", errorMsg);
     
     if (this._resumeTimeoutId) clearTimeout(this._resumeTimeoutId);
     this._resumeTimeoutId = setTimeout(() => {
@@ -318,18 +336,25 @@ class IsbnScanner extends HTMLElement {
     }, 3500);
   }
 
-  _showOverlay(type, html) {
+  _showOverlay(type, titleText, subtitleText) {
     const overlay = this.shadowRoot.getElementById("overlay");
     if (!overlay) return;
     overlay.className = `overlay ${type}`;
-    overlay.innerHTML = html;
+    
+    const titleEl = overlay.querySelector(".overlay-title");
+    const subtitleEl = overlay.querySelector(".overlay-subtitle");
+    if (titleEl) titleEl.textContent = titleText;
+    if (subtitleEl) subtitleEl.textContent = subtitleText || "";
   }
 
   _clearOverlay() {
     const overlay = this.shadowRoot.getElementById("overlay");
     if (overlay) {
       overlay.className = "overlay";
-      overlay.innerHTML = "";
+      const titleEl = overlay.querySelector(".overlay-title");
+      const subtitleEl = overlay.querySelector(".overlay-subtitle");
+      if (titleEl) titleEl.textContent = "";
+      if (subtitleEl) subtitleEl.textContent = "";
     }
     if (this._resumeTimeoutId) {
       clearTimeout(this._resumeTimeoutId);
