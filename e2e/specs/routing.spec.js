@@ -1,37 +1,32 @@
 import { test, expect } from '@playwright/test';
-
-const makeUniqueEmail = () => `testuser-${Date.now()}-${Math.floor(Math.random() * 1000)}@example.com`;
+import { makeUniqueEmail, registerUser, ROUTES } from '../helpers.js';
 
 test.describe('Routing & Outage Resilience', () => {
   
   test('should redirect unauthenticated guest users to login', async ({ page }) => {
     // 1. Attempt to access books page directly
-    await page.goto('/#/books');
-    await expect(page).toHaveURL(/.*#\/login/);
+    await page.goto(ROUTES.books);
+    await expect(page).toHaveURL(new RegExp(ROUTES.login));
 
     // 2. Attempt to access scanner page directly
-    await page.goto('/#/scanner');
-    await expect(page).toHaveURL(/.*#\/login/);
+    await page.goto(ROUTES.scanner);
+    await expect(page).toHaveURL(new RegExp(ROUTES.login));
   });
 
   test('should redirect authenticated users away from auth pages', async ({ page }) => {
     const email = makeUniqueEmail();
     const password = 'Password123!';
 
-    // Register and login
-    await page.goto('/#/register');
-    await page.fill('auth-form[mode="register"] input[name="email"]', email);
-    await page.fill('auth-form[mode="register"] input[name="password"]', password);
-    await page.click('auth-form[mode="register"] button[type="submit"]');
-    await expect(page).toHaveURL(/.*#\/books/);
+    // Register and login using helper
+    await registerUser(page, email, password);
 
     // Try to visit login while authenticated
-    await page.goto('/#/login');
-    await expect(page).toHaveURL(/.*#\/books/);
+    await page.goto(ROUTES.login);
+    await expect(page).toHaveURL(new RegExp(ROUTES.books));
 
     // Try to visit register while authenticated
-    await page.goto('/#/register');
-    await expect(page).toHaveURL(/.*#\/books/);
+    await page.goto(ROUTES.register);
+    await expect(page).toHaveURL(new RegExp(ROUTES.books));
   });
 
   test('should display service unreachable page if backend status check fails', async ({ page }) => {

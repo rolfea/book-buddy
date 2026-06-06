@@ -1,20 +1,15 @@
 import { test, expect } from '@playwright/test';
-
-const makeUniqueEmail = () => `testuser-${Date.now()}-${Math.floor(Math.random() * 1000)}@example.com`;
+import { makeUniqueEmail, registerUserViaAPI, ROUTES } from '../helpers.js';
 
 test.describe('Library Management Flow', () => {
   let email;
   const password = 'Password123!';
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
     email = makeUniqueEmail();
-    
-    // Register and login before each test to have an empty library
-    await page.goto('/#/register');
-    await page.fill('auth-form[mode="register"] input[name="email"]', email);
-    await page.fill('auth-form[mode="register"] input[name="password"]', password);
-    await page.click('auth-form[mode="register"] button[type="submit"]');
-    await expect(page).toHaveURL(/.*#\/books/);
+    // Register user via background API and navigate to books page directly
+    await registerUserViaAPI(request, page, email, password);
+    await page.goto(ROUTES.books);
   });
 
   test('should display empty state, add a book via simulated scan, change its status, and delete it', async ({ page }) => {
@@ -23,7 +18,7 @@ test.describe('Library Management Flow', () => {
     await expect(emptyStateText).toContainText('No books yet');
 
     // 2. Navigate to scanner page
-    await page.goto('/#/scanner');
+    await page.goto(ROUTES.scanner);
     await expect(page.locator('h1')).toHaveText('Scanner View');
 
     // 3. Dispatch mock ISBN detection event on <isbn-scanner>
@@ -43,7 +38,7 @@ test.describe('Library Management Flow', () => {
 
     // 5. Navigate back to Books page
     await page.click('#btn-go-books');
-    await expect(page).toHaveURL(/.*#\/books/);
+    await expect(page).toHaveURL(new RegExp(ROUTES.books));
 
     // 6. Verify book card is rendered in the list
     const bookCard = page.locator('book-card');

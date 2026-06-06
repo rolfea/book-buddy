@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
-
-const makeUniqueEmail = () => `testuser-${Date.now()}-${Math.floor(Math.random() * 1000)}@example.com`;
+import { makeUniqueEmail, registerUserViaAPI, ROUTES } from '../helpers.js';
 
 test.describe('Camera & Barcode Scanner Emulation', () => {
   let email;
   const password = 'Password123!';
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
     email = makeUniqueEmail();
 
     // 1. Inject canvas stream and BarcodeDetector mocks before page loads
@@ -46,17 +45,13 @@ test.describe('Camera & Barcode Scanner Emulation', () => {
       window.BarcodeDetector = MockBarcodeDetector;
     });
 
-    // 2. Register and Login to start fresh
-    await page.goto('/#/register');
-    await page.fill('auth-form[mode="register"] input[name="email"]', email);
-    await page.fill('auth-form[mode="register"] input[name="password"]', password);
-    await page.click('auth-form[mode="register"] button[type="submit"]');
-    await expect(page).toHaveURL(/.*#\/books/);
+    // 2. Register and Login to start fresh using shared helper via API
+    await registerUserViaAPI(request, page, email, password);
   });
 
   test('should initialize scanner, auto-detect barcode, display success HUD, and list book', async ({ page }) => {
     // 1. Visit scanner view
-    await page.goto('/#/scanner');
+    await page.goto(ROUTES.scanner);
     await expect(page.locator('h1')).toHaveText('Scanner View');
 
     // 2. Verify status text confirms scanning is active
@@ -81,7 +76,7 @@ test.describe('Camera & Barcode Scanner Emulation', () => {
 
     // 6. Navigate to Books list and verify the book is in our library
     await page.click('#btn-go-books');
-    await expect(page).toHaveURL(/.*#\/books/);
+    await expect(page).toHaveURL(new RegExp(ROUTES.books));
     
     const bookCard = page.locator('book-card');
     await expect(bookCard).toBeVisible();

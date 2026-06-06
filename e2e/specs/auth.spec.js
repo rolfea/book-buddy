@@ -1,41 +1,48 @@
 import { test, expect } from '@playwright/test';
-
-// Helper to generate unique email for test isolation
-const makeUniqueEmail = () => `testuser-${Date.now()}-${Math.floor(Math.random() * 1000)}@example.com`;
+import { makeUniqueEmail, registerUser, loginUser, ROUTES } from '../helpers.js';
 
 test.describe('Authentication Flow', () => {
   test('should register a new user, redirect to books page, and allow logging out', async ({ page }) => {
     const testEmail = makeUniqueEmail();
     const testPassword = 'Password123!';
 
-    // 1. Visit registration page
-    await page.goto('/#/register');
-    await expect(page.locator('h1')).toHaveText('Create an Account');
+    // Register user using shared helper
+    await registerUser(page, testEmail, testPassword);
 
-    // 2. Fill registration details
-    await page.fill('auth-form[mode="register"] input[name="email"]', testEmail);
-    await page.fill('auth-form[mode="register"] input[name="password"]', testPassword);
-    await page.click('auth-form[mode="register"] button[type="submit"]');
-
-    // 3. Assert redirection to books page
-    await expect(page).toHaveURL(/.*#\/books/);
+    // Verify My Books view details
     await expect(page.locator('h1')).toHaveText('My Books');
 
-    // 4. Assert navigation elements are visible
+    // Assert navigation elements are visible
     const nav = page.locator('#nav');
     await expect(nav.locator('a[href="#/books"]')).toBeVisible();
     await expect(nav.locator('a[href="#/scanner"]')).toBeVisible();
 
-    // 5. Logout
+    // Logout
     await page.click('#logout-btn');
 
-    // 6. Assert redirection back to login
-    await expect(page).toHaveURL(/.*#\/login/);
+    // Assert redirection back to login
+    await expect(page).toHaveURL(new RegExp(ROUTES.login));
     await expect(page.locator('h1')).toHaveText('Login');
   });
 
+  test('should log in successfully with an existing user', async ({ page }) => {
+    const testEmail = makeUniqueEmail();
+    const testPassword = 'Password123!';
+
+    // 1. Register a user first
+    await registerUser(page, testEmail, testPassword);
+
+    // 2. Log out
+    await page.click('#logout-btn');
+    await expect(page).toHaveURL(new RegExp(ROUTES.login));
+
+    // 3. Log back in using shared loginUser helper
+    await loginUser(page, testEmail, testPassword);
+    await expect(page.locator('h1')).toHaveText('My Books');
+  });
+
   test('should fail to login with wrong credentials and display error message', async ({ page }) => {
-    await page.goto('/#/login');
+    await page.goto(ROUTES.login);
     await expect(page.locator('h1')).toHaveText('Login');
 
     // Attempt login with invalid user
