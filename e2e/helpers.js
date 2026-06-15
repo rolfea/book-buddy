@@ -1,13 +1,14 @@
 import { expect } from '@playwright/test';
+import { ROUTES as CLIENT_ROUTES } from '../web-client/routes.js';
 
 /**
  * Centralized routes mapping to prevent brittle URL hardcoding in tests.
  */
 export const ROUTES = {
-  login: '#/login',
-  register: '#/register',
-  books: '#/books',
-  scanner: '#/scanner',
+  login: '#' + CLIENT_ROUTES.login,
+  register: '#' + CLIENT_ROUTES.register,
+  books: '#' + CLIENT_ROUTES.books,
+  scanner: '#' + CLIENT_ROUTES.scanner,
 };
 
 /**
