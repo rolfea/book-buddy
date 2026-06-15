@@ -1,4 +1,4 @@
-.PHONY: build start test migrate docker stop clean help
+.PHONY: build start test test-e2e migrate docker stop clean help
 
 APP_ENV ?= local
 
@@ -38,6 +38,19 @@ test:
 	@echo "Running all tests..."
 	cd server && go test ./...
 
+test-e2e:
+	@echo "Starting PostgreSQL..."
+	cd server && docker compose up -d
+	@echo "Waiting for database to be ready..."
+	@until cd server && docker compose exec db pg_isready -U bookbuddy > /dev/null 2>&1; do \
+		echo "PostgreSQL is starting..."; \
+		sleep 1; \
+	done
+	@echo "Running database migrations..."
+	@cd server && go run ./cmd/migrate/main.go -db-url "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" -path migrations up
+	@echo "Running E2E tests..."
+	cd e2e && npm test
+
 migrate:
 	@echo "Running database migrations for $(APP_ENV) environment..."
 	@if [ "$(APP_ENV)" = "production" ]; then \
@@ -66,6 +79,7 @@ help:
 	@echo "  make start       - Start the Go server (for Render)"
 	@echo "  make start-local - Start PostgreSQL, Go server, and open browser"
 	@echo "  make test        - Run all Go tests"
+	@echo "  make test-e2e    - Run Playwright end-to-end tests (ensures database is running)"
 	@echo "  make migrate     - Run database migrations"
 	@echo "  make docker      - Start PostgreSQL containers"
 	@echo "  make stop        - Stop PostgreSQL containers"

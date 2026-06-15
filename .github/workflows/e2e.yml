@@ -1,0 +1,68 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Start PostgreSQL Database
+      run: |
+        cd server
+        docker compose up -d
+        # Wait for Postgres to be healthy
+        for i in {1..30}; do
+          if docker exec $(docker ps -q -f name=server-db-1) pg_isready -U bookbuddy; then
+            echo "PostgreSQL is ready!"
+            break
+          fi
+          echo "Waiting for PostgreSQL..."
+          sleep 1
+        done
+
+    - name: Run DB Migrations
+      run: |
+        cd server
+        go run cmd/migrate/main.go -db-url "postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable" -path migrations up
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: e2e/package.json
+
+    - name: Install dependencies
+      run: |
+        cd e2e
+        npm ci
+
+    - name: Install Playwright Browsers
+      run: |
+        cd e2e
+        npx playwright install --with-deps chromium
+
+    - name: Run E2E Tests
+      run: |
+        cd e2e
+        npx playwright test
+
+    - name: Upload Playwright Report
+      uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report
+        path: e2e/playwright-report/
+        retention-days: 30
