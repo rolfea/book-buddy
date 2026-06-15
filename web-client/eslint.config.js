@@ -31,7 +31,13 @@ const browserGlobals = {
   ImageCapture: "readonly",
   BarcodeDetector: "readonly",
   createImageBitmap: "readonly",
+  // Standard Web APIs
+  btoa: "readonly",
+  TextEncoder: "readonly",
+  sessionStorage: "readonly",
+  URLSearchParams: "readonly",
 };
+
 
 // Globals available in Node.js scripts and test files
 const nodeGlobals = {

@@ -5,18 +5,18 @@ class AuthForm extends HTMLElement {
     const mode = this.getAttribute("mode") || "login";
     const isRegister = mode === "register";
 
+    // eslint-disable-next-line no-unsanitized/property
     this.innerHTML = `
-      <form>
-        <input type="email" name="email" placeholder="Email" required />
-        <input type="password" name="password" placeholder="Password" required />
-        <button type="submit"></button>
-        <p class="error" hidden></p>
-      </form>
-      <div class="auth-switch-container"></div>
+      <div class="auth-card">
+        <h2>${isRegister ? "Create a Book Buddy account" : "Sign in to Book Buddy"}</h2>
+        <p class="auth-subtitle">Authentication is securely handled by Auth0.</p>
+        <button id="auth-submit-btn" class="auth-btn"></button>
+        <div class="auth-switch-container"></div>
+      </div>
     `;
 
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.textContent = isRegister ? "Register" : "Login";
+    const submitBtn = this.querySelector('#auth-submit-btn');
+    submitBtn.textContent = isRegister ? "Sign Up via Auth0" : "Sign In via Auth0";
 
     const switchContainer = this.querySelector(".auth-switch-container");
     if (isRegister) {
@@ -39,29 +39,19 @@ class AuthForm extends HTMLElement {
       switchContainer.appendChild(link);
     }
 
-    this.querySelector("form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const errorEl = form.querySelector(".error");
-      errorEl.hidden = true;
-
-      const email = form.email.value.trim();
-      const password = form.password.value;
-
+    submitBtn.addEventListener("click", async () => {
       try {
         if (isRegister) {
-          await register(email, password);
+          await register();
         } else {
-          await login(email, password);
+          await login();
         }
-        location.hash = "#/books";
       } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.hidden = false;
+        console.error(err);
       }
     });
   }
 }
 
 customElements.define("auth-form", AuthForm);
-
+export { AuthForm };
