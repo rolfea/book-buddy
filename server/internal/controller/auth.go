@@ -1,36 +1,45 @@
 package controller
 
 import (
-	"database/sql"
+	"bytes"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/rolfea/book-buddy/server/internal/auth"
 	"github.com/rolfea/book-buddy/server/internal/data"
-	"github.com/rolfea/book-buddy/server/internal/data/query"
 	"github.com/rolfea/book-buddy/server/internal/middleware"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthController struct {
-	store         *data.Store
-	provider      auth.AuthProvider
-	secureCookies bool
+	store             *data.Store
+	provider          auth.AuthProvider
+	secureCookies     bool
+	auth0Domain       string
+	auth0ClientID     string
+	auth0ClientSecret string
+	auth0CallbackURL  string
 }
 
-func NewAuthController(store *data.Store, provider auth.AuthProvider, secureCookies bool) *AuthController {
-	return &AuthController{store: store, provider: provider, secureCookies: secureCookies}
-}
-
-type authRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type authResponse struct {
-	Token string `json:"token"`
+func NewAuthController(
+	store *data.Store,
+	provider auth.AuthProvider,
+	secureCookies bool,
+	auth0Domain string,
+	auth0ClientID string,
+	auth0ClientSecret string,
+	auth0CallbackURL string,
+) *AuthController {
+	return &AuthController{
+		store:             store,
+		provider:          provider,
+		secureCookies:     secureCookies,
+		auth0Domain:       auth0Domain,
+		auth0ClientID:     auth0ClientID,
+		auth0ClientSecret: auth0ClientSecret,
+		auth0CallbackURL:  auth0CallbackURL,
+	}
 }
 
 func (c *AuthController) setAuthCookie(w http.ResponseWriter, token string) {
@@ -46,72 +55,72 @@ func (c *AuthController) setAuthCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
-	var req authRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if req.Email == "" || req.Password == "" {
-		writeError(w, http.StatusBadRequest, "email and password required")
-		return
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	user, err := c.store.CreateUser(r.Context(), query.CreateUserParams{
-		Email:        req.Email,
-		PasswordHash: string(hash),
-	})
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not create user")
-		return
-	}
-
-	token, err := c.provider.Sign(user.ID.String(), user.Email)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not sign token")
-		return
-	}
-
-	c.setAuthCookie(w, token)
-	writeJSON(w, http.StatusCreated, authResponse{Token: token})
+type callbackRequest struct {
+	Code         string `json:"code"`
+	CodeVerifier string `json:"code_verifier"`
 }
 
-func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
-	var req authRequest
+type callbackResponse struct {
+	Success bool `json:"success"`
+}
+
+func (c *AuthController) Callback(w http.ResponseWriter, r *http.Request) {
+	var req callbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	user, err := c.store.GetUserByEmail(r.Context(), req.Email)
-	if errors.Is(err, sql.ErrNoRows) {
-		writeError(w, http.StatusUnauthorized, "invalid credentials")
+	if req.Code == "" || req.CodeVerifier == "" {
+		writeError(w, http.StatusBadRequest, "code and code_verifier required")
 		return
 	}
+
+	// Exchange code with Auth0
+	tokenURL := fmt.Sprintf("https://%s/oauth/token", c.auth0Domain)
+	payload := map[string]string{
+		"grant_type":    "authorization_code",
+		"client_id":     c.auth0ClientID,
+		"client_secret": c.auth0ClientSecret,
+		"code":          req.Code,
+		"code_verifier": req.CodeVerifier,
+		"redirect_uri":  c.auth0CallbackURL,
+	}
+
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid credentials")
-		return
-	}
-
-	token, err := c.provider.Sign(user.ID.String(), user.Email)
+	resp, err := http.Post(tokenURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not sign token")
+		writeError(w, http.StatusBadGateway, "failed to contact auth0")
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]interface{}
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		writeError(w, http.StatusBadRequest, "failed to exchange code")
 		return
 	}
 
-	c.setAuthCookie(w, token)
-	writeJSON(w, http.StatusOK, authResponse{Token: token})
+	var tokenResp struct {
+		IDToken     string `json:"id_token"`
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to decode token response")
+		return
+	}
+
+	// Set the ID token as our HttpOnly auth cookie
+	// The middleware will validate this token
+	c.setAuthCookie(w, tokenResp.IDToken)
+
+	writeJSON(w, http.StatusOK, callbackResponse{Success: true})
 }
 
 func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +145,6 @@ func (c *AuthController) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Just return the claims for now, or fetch full user from DB if needed
 	writeJSON(w, http.StatusOK, map[string]string{
 		"id":    claims.UserID,
 		"email": claims.Email,

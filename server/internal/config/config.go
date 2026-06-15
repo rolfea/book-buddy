@@ -15,6 +15,10 @@ type Config struct {
 	CORSAllowedOrigins string
 	SecureCookies      bool
 	Environment        string
+	Auth0Domain        string
+	Auth0ClientID      string
+	Auth0ClientSecret  string
+	Auth0Audience      string
 }
 
 func Load() (*Config, error) {
@@ -32,13 +36,21 @@ func Load() (*Config, error) {
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:8081"),
 		SecureCookies:      getEnv("SECURE_COOKIES", "true") == "true",
 		Environment:        getEnv("APP_ENV", "local"),
+		Auth0Domain:        getEnv("AUTH0_DOMAIN", ""),
+		Auth0ClientID:      getEnv("AUTH0_CLIENT_ID", ""),
+		Auth0ClientSecret:  getEnv("AUTH0_CLIENT_SECRET", ""),
+		Auth0Audience:      getEnv("AUTH0_AUDIENCE", ""),
 	}
 
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
-	if cfg.JWTSecret == "" {
-		return nil, fmt.Errorf("JWT_SECRET is required")
+
+	// We only require Auth0 in staging/production environments
+	if cfg.Environment == "production" || cfg.Environment == "staging" {
+		if cfg.Auth0Domain == "" || cfg.Auth0ClientID == "" || cfg.Auth0ClientSecret == "" {
+			return nil, fmt.Errorf("AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET are required in %s environment", cfg.Environment)
+		}
 	}
 
 	return cfg, nil

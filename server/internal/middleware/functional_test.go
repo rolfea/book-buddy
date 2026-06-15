@@ -1,11 +1,15 @@
 package middleware
 
 import (
+	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/rolfea/book-buddy/server/internal/auth"
+	"github.com/rolfea/book-buddy/server/internal/data/query"
 )
 
 type mockAuthProvider struct {
@@ -24,19 +28,59 @@ func (m *mockAuthProvider) Validate(token string) (*auth.Claims, error) {
 	return m.claims, nil
 }
 
+type mockUserStore struct {
+	users map[string]query.User
+}
+
+func (m *mockUserStore) GetUserByExternalID(ctx context.Context, externalID string) (query.User, error) {
+	u, ok := m.users[externalID]
+	if !ok {
+		return query.User{}, sql.ErrNoRows
+	}
+	return u, nil
+}
+
+func (m *mockUserStore) CreateUser(ctx context.Context, arg query.CreateUserParams) (query.User, error) {
+	u := query.User{
+		ID:               uuid.New(),
+		Email:            arg.Email,
+		ExternalID:       arg.ExternalID,
+		ExternalProvider: arg.ExternalProvider,
+	}
+	if m.users == nil {
+		m.users = make(map[string]query.User)
+	}
+	m.users[arg.ExternalID] = u
+	return u, nil
+}
+
 func TestRequireAuth_Cookie(t *testing.T) {
 	provider := &mockAuthProvider{
-		claims: &auth.Claims{UserID: "123", Email: "test@example.com"},
+		claims: &auth.Claims{UserID: "auth0|test-user", Email: "test@example.com"},
 	}
-	middleware := RequireAuth(provider)
+	
+	// Create a user in the mock store so they exist already
+	userUUID := uuid.New()
+	store := &mockUserStore{
+		users: map[string]query.User{
+			"auth0|test-user": {
+				ID:               userUUID,
+				Email:            "test@example.com",
+				ExternalID:       "auth0|test-user",
+				ExternalProvider: "auth0",
+			},
+		},
+	}
 
-	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := RequireAuth(provider, store)
+
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
 			t.Error("claims not found in context")
 		}
-		if claims.UserID != "123" {
-			t.Errorf("expected user ID 123, got %s", claims.UserID)
+		if claims.UserID != userUUID.String() {
+			t.Errorf("expected user ID %s (database UUID), got %s", userUUID.String(), claims.UserID)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -59,6 +103,39 @@ func TestRequireAuth_Cookie(t *testing.T) {
 
 		if rr.Code != http.StatusUnauthorized {
 			t.Errorf("expected status Unauthorized, got %d", rr.Code)
+		}
+	})
+
+	t.Run("Auto Provision User", func(t *testing.T) {
+		// Test user store that doesn't have the user yet
+		emptyStore := &mockUserStore{
+			users: make(map[string]query.User),
+		}
+		mwAuto := RequireAuth(provider, emptyStore)
+		handlerAuto := mwAuto(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := ClaimsFromContext(r.Context())
+			if !ok {
+				t.Error("claims not found in context")
+			}
+			// Should be a valid parsed UUID
+			if _, err := uuid.Parse(claims.UserID); err != nil {
+				t.Errorf("expected claims.UserID to be a valid UUID, got %s", claims.UserID)
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		req := httptest.NewRequest("GET", "/", nil)
+		req.AddCookie(&http.Cookie{Name: "token", Value: "valid-token"})
+		rr := httptest.NewRecorder()
+		handlerAuto.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected status OK, got %d", rr.Code)
+		}
+
+		// Ensure user was indeed added to the mock store
+		if len(emptyStore.users) != 1 {
+			t.Errorf("expected user to be provisioned in store, users count is %d", len(emptyStore.users))
 		}
 	})
 }
