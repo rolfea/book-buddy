@@ -2,13 +2,19 @@ package controller
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rolfea/book-buddy/server/internal/auth"
 	"github.com/rolfea/book-buddy/server/internal/data"
+	"github.com/rolfea/book-buddy/server/internal/data/query"
 	"github.com/rolfea/book-buddy/server/internal/middleware"
 )
 
@@ -76,15 +82,22 @@ func (c *AuthController) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Exchange code with Auth0
-	tokenURL := fmt.Sprintf("https://%s/oauth/token", c.auth0Domain)
+	// Exchange code with Auth0 (support mock http server in unit tests)
+	scheme := "https"
+	if strings.HasPrefix(c.auth0Domain, "127.0.0.1") || strings.HasPrefix(c.auth0Domain, "localhost") {
+		scheme = "http"
+	}
+	tokenURL := fmt.Sprintf("%s://%s/oauth/token", scheme, c.auth0Domain)
+
 	payload := map[string]string{
 		"grant_type":    "authorization_code",
 		"client_id":     c.auth0ClientID,
-		"client_secret": c.auth0ClientSecret,
 		"code":          req.Code,
 		"code_verifier": req.CodeVerifier,
 		"redirect_uri":  c.auth0CallbackURL,
+	}
+	if c.auth0ClientSecret != "" {
+		payload["client_secret"] = c.auth0ClientSecret
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -103,6 +116,7 @@ func (c *AuthController) Callback(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK {
 		var errResp map[string]interface{}
 		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		log.Printf("Auth0 token exchange failed with status %d: %v", resp.StatusCode, errResp)
 		writeError(w, http.StatusBadRequest, "failed to exchange code")
 		return
 	}
@@ -116,8 +130,41 @@ func (c *AuthController) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set the ID token as our HttpOnly auth cookie
-	// The middleware will validate this token
+	// Parse unverified ID Token to extract claims (sub/email) for provisioning
+	parser := jwt.NewParser()
+	var claims auth.Claims
+	_, _, err = parser.ParseUnverified(tokenResp.IDToken, &claims)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "failed to parse id token")
+		return
+	}
+
+	if claims.UserID == "" {
+		writeError(w, http.StatusBadRequest, "invalid user id in id token")
+		return
+	}
+
+	// Provision user dynamically if they don't exist yet
+	ctx := r.Context()
+	_, err = c.store.GetUserByExternalID(ctx, claims.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			_, err = c.store.CreateUser(ctx, query.CreateUserParams{
+				Email:            claims.Email,
+				ExternalID:       claims.UserID,
+				ExternalProvider: "auth0",
+			})
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to provision user")
+				return
+			}
+		} else {
+			writeError(w, http.StatusInternalServerError, "database error during user check")
+			return
+		}
+	}
+
+	// Set the ID Token as our HttpOnly auth cookie
 	c.setAuthCookie(w, tokenResp.IDToken)
 
 	writeJSON(w, http.StatusOK, callbackResponse{Success: true})

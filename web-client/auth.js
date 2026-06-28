@@ -1,6 +1,27 @@
 import { request } from "./api.js";
 
 let currentUser = null;
+let auth0Client = null;
+
+export async function getAuth0Client() {
+  if (auth0Client) {
+    return auth0Client;
+  }
+  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "dev-dpr7adyud2sewfbo.us.auth0.com";
+  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
+
+  if (typeof window !== "undefined" && window.auth0) {
+    auth0Client = await window.auth0.createAuth0Client({
+      domain,
+      clientId,
+      authorizationParams: {
+        redirect_uri: window.location.origin + "/callback.html",
+        scope: "openid profile email",
+      }
+    });
+  }
+  return auth0Client;
+}
 
 // Helpers for PKCE
 function dec2hex(dec) {
@@ -63,8 +84,25 @@ export function isLoggedIn() {
 }
 
 export async function redirectToLogin(screenHint = "") {
-  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "your-tenant.us.auth0.com";
-  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "your-client-id";
+  const client = await getAuth0Client();
+  const redirectUri = (typeof window !== "undefined" ? window.location.origin : "http://localhost:8081") + "/callback.html";
+
+  if (client) {
+    const options = {
+      authorizationParams: {
+        redirect_uri: redirectUri,
+      }
+    };
+    if (screenHint) {
+      options.authorizationParams.screen_hint = screenHint;
+    }
+    await client.loginWithRedirect(options);
+    return;
+  }
+
+  // Fallback behavior if SDK is not available (e.g. static environments or unit tests)
+  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "dev-dpr7adyud2sewfbo.us.auth0.com";
+  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
 
   const state = generateRandomString(16);
   const codeVerifier = generateRandomString(43);
@@ -79,7 +117,7 @@ export async function redirectToLogin(screenHint = "") {
   const params = {
     response_type: "code",
     client_id: clientId,
-    redirect_uri: (typeof window !== "undefined" ? window.location.origin : "http://localhost:8081") + "/callback.html",
+    redirect_uri: redirectUri,
     scope: "openid profile email",
     state: state,
     code_challenge: challenge,
@@ -113,8 +151,18 @@ export async function logout() {
   }
   currentUser = null;
 
-  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "your-tenant.us.auth0.com";
-  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "your-client-id";
+  const client = await getAuth0Client();
+  if (client) {
+    await client.logout({
+      logoutParams: {
+        returnTo: typeof window !== "undefined" ? window.location.origin : "http://localhost:8081",
+      }
+    });
+    return;
+  }
+
+  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "dev-dpr7adyud2sewfbo.us.auth0.com";
+  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
   const returnTo = typeof window !== "undefined" ? window.location.origin : "http://localhost:8081";
 
   const logoutUrl = `https://${domain}/v2/logout?` + new URLSearchParams({

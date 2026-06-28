@@ -20,7 +20,7 @@ start-local:
 	(cd server && go run ./cmd/server/main.go) & \
 	SERVER_PID=$$!; \
 	echo "Starting Frontend server on port 8081..." ; \
-	(cd web-client && npx http-server -p 8081) & \
+	(cd web-client && npx http-server -p 8081 -c-1) & \
 	FRONTEND_PID=$$!; \
 	sleep 3; \
 	echo "Opening browser to http://localhost:8081..."; \

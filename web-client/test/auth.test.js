@@ -38,6 +38,34 @@ global.sessionStorage = {
   removeItem: () => {}
 };
 
+// Mock window.auth0
+global.window.auth0 = {
+  createAuth0Client: async (config) => {
+    return {
+      loginWithRedirect: async (options) => {
+        const domain = config.domain;
+        const clientId = config.clientId;
+        const redirectUri = options?.authorizationParams?.redirect_uri || config.authorizationParams?.redirect_uri || "";
+        const screenHint = options?.authorizationParams?.screen_hint || "";
+        
+        let url = `https://${domain}/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        if (screenHint) {
+          url += `&screen_hint=${screenHint}`;
+        }
+        global.window.location.assign(url);
+      },
+      logout: async (options) => {
+        const domain = config.domain;
+        const clientId = config.clientId;
+        const returnTo = options?.logoutParams?.returnTo || "";
+        
+        const url = `https://${domain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(returnTo)}`;
+        global.window.location.assign(url);
+      }
+    };
+  }
+};
+
 const { checkSession, isLoggedIn, getUser, login, logout } = await import("../auth.js");
 
 describe("auth", () => {
@@ -77,7 +105,7 @@ describe("auth", () => {
 
     await login();
     assert.ok(redirectedUrl.includes("/authorize"));
-    assert.ok(redirectedUrl.includes("client_id=your-client-id"));
+    assert.ok(redirectedUrl.includes("client_id=sxAckgOU1BtWidrVdkvIqptbK3srOa7a"));
     assert.ok(redirectedUrl.includes("response_type=code"));
   });
 
@@ -99,6 +127,6 @@ describe("auth", () => {
     assert.equal(isLoggedIn(), false);
     assert.equal(getUser(), null);
     assert.ok(redirectedUrl.includes("/v2/logout"));
-    assert.ok(redirectedUrl.includes("client_id=your-client-id"));
+    assert.ok(redirectedUrl.includes("client_id=sxAckgOU1BtWidrVdkvIqptbK3srOa7a"));
   });
 });

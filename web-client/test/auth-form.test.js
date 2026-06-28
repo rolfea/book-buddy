@@ -32,6 +32,34 @@ global.sessionStorage = {
   removeItem: () => {}
 };
 
+// Mock window.auth0
+win.auth0 = {
+  createAuth0Client: async (config) => {
+    return {
+      loginWithRedirect: async (options) => {
+        const domain = config.domain;
+        const clientId = config.clientId;
+        const redirectUri = options?.authorizationParams?.redirect_uri || config.authorizationParams?.redirect_uri || "";
+        const screenHint = options?.authorizationParams?.screen_hint || "";
+        
+        let url = `https://${domain}/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        if (screenHint) {
+          url += `&screen_hint=${screenHint}`;
+        }
+        win.location.assign(url);
+      },
+      logout: async (options) => {
+        const domain = config.domain;
+        const clientId = config.clientId;
+        const returnTo = options?.logoutParams?.returnTo || "";
+        
+        const url = `https://${domain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(returnTo)}`;
+        win.location.assign(url);
+      }
+    };
+  }
+};
+
 await import("../components/auth-form.js");
 
 function mountForm(mode) {

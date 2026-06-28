@@ -55,26 +55,16 @@ func RequireAuth(provider auth.AuthProvider, store UserStore) Middleware {
 			dbUser, err := store.GetUserByExternalID(ctx, claims.UserID)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					// User does not exist yet. Provision them dynamically.
-					providerName := "auth0"
-					dbUser, err = store.CreateUser(ctx, query.CreateUserParams{
-						Email:            claims.Email,
-						ExternalID:       claims.UserID,
-						ExternalProvider: providerName,
-					})
-					if err != nil {
-						http.Error(w, `{"error":"failed to provision user"}`, http.StatusInternalServerError)
-						return
-					}
-				} else {
-					http.Error(w, `{"error":"database error during auth lookup"}`, http.StatusInternalServerError)
+					http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 					return
 				}
+				http.Error(w, `{"error":"database error during auth lookup"}`, http.StatusInternalServerError)
+				return
 			}
 
-			// Mutate claims.UserID to hold the internal UUID string, so the rest of the application
-			// works seamlessly without needing modification.
+			// Mutate claims to hold internal DB values so downstream handlers work seamlessly
 			claims.UserID = dbUser.ID.String()
+			claims.Email = dbUser.Email
 
 			ctx = context.WithValue(ctx, claimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))

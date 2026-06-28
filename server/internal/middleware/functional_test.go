@@ -106,21 +106,13 @@ func TestRequireAuth_Cookie(t *testing.T) {
 		}
 	})
 
-	t.Run("Auto Provision User", func(t *testing.T) {
+	t.Run("Reject Unprovisioned User", func(t *testing.T) {
 		// Test user store that doesn't have the user yet
 		emptyStore := &mockUserStore{
 			users: make(map[string]query.User),
 		}
 		mwAuto := RequireAuth(provider, emptyStore)
 		handlerAuto := mwAuto(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, ok := ClaimsFromContext(r.Context())
-			if !ok {
-				t.Error("claims not found in context")
-			}
-			// Should be a valid parsed UUID
-			if _, err := uuid.Parse(claims.UserID); err != nil {
-				t.Errorf("expected claims.UserID to be a valid UUID, got %s", claims.UserID)
-			}
 			w.WriteHeader(http.StatusOK)
 		}))
 
@@ -129,13 +121,13 @@ func TestRequireAuth_Cookie(t *testing.T) {
 		rr := httptest.NewRecorder()
 		handlerAuto.ServeHTTP(rr, req)
 
-		if rr.Code != http.StatusOK {
-			t.Errorf("expected status OK, got %d", rr.Code)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("expected status Unauthorized (401), got %d", rr.Code)
 		}
 
-		// Ensure user was indeed added to the mock store
-		if len(emptyStore.users) != 1 {
-			t.Errorf("expected user to be provisioned in store, users count is %d", len(emptyStore.users))
+		// Ensure no user was added to the mock store
+		if len(emptyStore.users) != 0 {
+			t.Errorf("expected no user to be provisioned in store, users count is %d", len(emptyStore.users))
 		}
 	})
 }
