@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { makeUniqueEmail, registerUser, loginUser, ROUTES } from '../helpers.js';
+import { makeUniqueEmail, registerUser, loginUser, resetDatabase, ROUTES } from '../helpers.js';
 
 test.describe('Authentication Flow', () => {
+  test.beforeEach(async () => {
+    await resetDatabase();
+  });
+
   test('should register a new user, redirect to books page, and allow logging out', async ({ page }) => {
     const testEmail = makeUniqueEmail();
     const testPassword = 'Password123!';

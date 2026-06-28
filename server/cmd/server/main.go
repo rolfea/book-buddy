@@ -94,6 +94,12 @@ func main() {
 			return
 		}
 		isbn := strings.TrimPrefix(bibkeys, "ISBN:")
+		if isbn != "9780596520687" {
+			w.WriteHeader(http.StatusNotFound)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{}`))
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(fmt.Sprintf(`{
 			"ISBN:%s": {
