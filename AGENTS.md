@@ -143,3 +143,24 @@ To satisfy our security linters (`eslint-plugin-no-unsanitized`) and prevent DOM
 - **users**: Authentication and identity.
 - **books**: Global book metadata (ISBN, Title, Author, Cover URL).
 - **user_books**: Join table linking users to books with `status` (`owned`, `wishlisted`, `removed`).
+
+## Local vs Production (Render) Configuration
+
+To support seamless offline local development alongside secure cross-origin production deployments (e.g. on Render), developers and agents must adhere to the following configuration model:
+
+### Environment and Validation Rules
+* **Production / Staging (`APP_ENV=production` / `APP_ENV=staging`)**:
+  * **Auth0 OIDC Required**: `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` are strictly validated on startup.
+  * **Asymmetric Security**: The backend validates token signatures exclusively against Auth0's public keys via the `/.well-known/jwks.json` endpoint. The symmetric `JWT_SECRET` fallback validation is completely disabled.
+  * **Secure Cookies**: `SECURE_COOKIES` must be `true` (enforcing the `Secure` attribute on cookies).
+  * **Cross-Site Cookie Support**: When `SECURE_COOKIES` is enabled, the backend sets the auth cookie `SameSite` attribute to `None` to permit browser-level cross-site request validation from your frontend domain.
+* **Local Development / Testing (`APP_ENV=local` / `APP_ENV=development` / `APP_ENV=test`)**:
+  * **Auth0 Optional**: The backend permits booting without Auth0 credentials.
+  * **Symmetric Fallback**: Symmetrically validates tokens using `JWT_SECRET` to support local registration/login and offline E2E tests.
+  * **Cookie SameSite**: Cookie `Secure` is off, and `SameSite` falls back to `Lax` to prevent browsers from rejecting HTTP cookies.
+  * **Database Seeding**: The server automatically populates PostgreSQL with a test account (`test@example.com`) and default books.
+
+### Render Deployment Checklist
+* **Environment Variables**: Set `APP_ENV=production`, `SECURE_COOKIES=true`, `CORS_ALLOWED_ORIGINS=https://<your-frontend>.render.com`, `DATABASE_URL`, `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_AUDIENCE`.
+* **Auth0 Settings**: Configure the Auth0 application dashboard Allowed Callback URLs to include `https://<your-frontend>.render.com/callback.html` and Allowed Logout URLs to `https://<your-frontend>.render.com`.
+

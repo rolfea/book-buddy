@@ -49,6 +49,10 @@ func NewAuthController(
 }
 
 func (c *AuthController) setAuthCookie(w http.ResponseWriter, token string) {
+	sameSite := http.SameSiteLaxMode
+	if c.secureCookies {
+		sameSite = http.SameSiteNoneMode
+	}
 	// #nosec G124 - Secure is configurable via config to support local mobile testing over HTTP
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
@@ -56,7 +60,7 @@ func (c *AuthController) setAuthCookie(w http.ResponseWriter, token string) {
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   c.secureCookies,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: sameSite,
 		MaxAge:   3600 * 24 * 3, // 3 days
 	})
 }
@@ -171,6 +175,10 @@ func (c *AuthController) Callback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
+	sameSite := http.SameSiteLaxMode
+	if c.secureCookies {
+		sameSite = http.SameSiteNoneMode
+	}
 	// #nosec G124 - Secure is configurable via config to support local mobile testing over HTTP
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
@@ -178,7 +186,7 @@ func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   c.secureCookies,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: sameSite,
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 	})
