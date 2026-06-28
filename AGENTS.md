@@ -65,8 +65,17 @@ go test ./server/...
 # Install test dependencies (happy-dom)
 cd web-client && npm install
 
-# Run frontend tests
+# Run frontend unit tests
 npm test
+
+# Run frontend linters (JS and CSS check)
+npm run lint
+```
+
+### End-to-End (E2E) Testing
+```bash
+# Run all Playwright E2E tests (automatically handles Postgres startup and migrations)
+make test-e2e
 ```
 
 ## Architectural Patterns

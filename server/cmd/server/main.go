@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -45,11 +46,34 @@ func main() {
 		}
 	}
 
-	authProvider := auth.NewJWTAuthProvider(cfg.JWTSecret, cfg.JWTExpiryHours)
+	var jwksURI, issuer string
+	if cfg.Auth0Domain != "" {
+		jwksURI = fmt.Sprintf("https://%s/.well-known/jwks.json", cfg.Auth0Domain)
+		issuer = fmt.Sprintf("https://%s/", cfg.Auth0Domain)
+	}
+
+	authProvider, err := auth.NewIDPAuthProvider(jwksURI, issuer, cfg.Auth0Audience, cfg.JWTSecret)
+	if err != nil {
+		log.Fatalf("auth provider init: %v", err)
+	}
+
+	var callbackURL string
+	if cfg.CORSAllowedOrigins != "" {
+		origins := strings.Split(cfg.CORSAllowedOrigins, ",")
+		callbackURL = fmt.Sprintf("%s/callback.html", origins[0])
+	}
 
 	libraryClient := data.NewHTTPBookMetadataClient(cfg.OpenLibraryBaseURL)
 	booksSvc := service.NewBooksService(store, libraryClient)
-	authCtrl := controller.NewAuthController(store, authProvider, cfg.SecureCookies)
+	authCtrl := controller.NewAuthController(
+		store,
+		authProvider,
+		cfg.SecureCookies,
+		cfg.Auth0Domain,
+		cfg.Auth0ClientID,
+		cfg.Auth0ClientSecret,
+		callbackURL,
+	)
 	booksCtrl := controller.NewBooksController(booksSvc)
 
 	mux := http.NewServeMux()
@@ -62,13 +86,38 @@ func main() {
 		}
 	})
 
+	// OpenLibrary API mock for E2E testing
+	mux.HandleFunc("GET /api/books", func(w http.ResponseWriter, r *http.Request) {
+		bibkeys := r.URL.Query().Get("bibkeys")
+		if !strings.HasPrefix(bibkeys, "ISBN:") {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		isbn := strings.TrimPrefix(bibkeys, "ISBN:")
+		if isbn != "9780596520687" {
+			w.WriteHeader(http.StatusNotFound)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(fmt.Sprintf(`{
+			"ISBN:%s": {
+				"title": "Using SQLite",
+				"authors": [{"name": "Jay A. Kreibich"}],
+				"cover": {"large": "https://covers.openlibrary.org/b/id/6487543-L.jpg"}
+			}
+		}`, isbn)))
+	})
+
 	// Auth routes (no auth middleware)
+	mux.HandleFunc("POST /api/auth/callback", authCtrl.Callback)
+	mux.HandleFunc("POST /api/auth/logout", authCtrl.Logout)
 	mux.HandleFunc("POST /api/auth/register", authCtrl.Register)
 	mux.HandleFunc("POST /api/auth/login", authCtrl.Login)
-	mux.HandleFunc("POST /api/auth/logout", authCtrl.Logout)
 
 	// Protected routes
-	requireAuth := middleware.RequireAuth(authProvider)
+	requireAuth := middleware.RequireAuth(authProvider, store)
 	
 	mux.Handle("GET /api/auth/me", requireAuth(http.HandlerFunc(authCtrl.Me)))
 	

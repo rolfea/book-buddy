@@ -7,15 +7,15 @@ import (
 	"log"
 
 	"github.com/rolfea/book-buddy/server/internal/data/query"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // SeedDefaultData inserts a default test user and a small collection of books
 // if the test user does not already exist. If the user exists, it ensures the
-// password is set to "password" and books are seeded if the collection is empty.
+// books are seeded if the collection is empty.
 func (s *Store) SeedDefaultData(ctx context.Context) error {
 	const testEmail = "test@example.com"
-	const testPassword = "password"
+	const testExternalID = "auth0|test-user-id"
+	const testProvider = "auth0"
 
 	// Define seeded books
 	type seedBook struct {
@@ -73,18 +73,13 @@ func (s *Store) SeedDefaultData(ctx context.Context) error {
 	if !userExists {
 		log.Printf("Seeding default testing account (%s)...", testEmail)
 
-		// Hash password
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-
 		// Use ExecTx transaction to ensure atomicity
 		err = s.ExecTx(ctx, func(ctx context.Context, q *query.Queries) error {
 			// Create the default user
 			createdUser, err := q.CreateUser(ctx, query.CreateUserParams{
-				Email:        testEmail,
-				PasswordHash: string(hashedPassword),
+				Email:            testEmail,
+				ExternalID:       testExternalID,
+				ExternalProvider: testProvider,
 			})
 			if err != nil {
 				return err
@@ -128,23 +123,7 @@ func (s *Store) SeedDefaultData(ctx context.Context) error {
 
 		log.Printf("Successfully seeded default testing account (%s) with %d books", testEmail, len(booksToSeed))
 	} else {
-		// User exists. Let's make sure their password is set to "password"
-		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(testPassword))
-		if err != nil {
-			// Password hash does not match "password", reset it!
-			log.Printf("Updating existing default test user password to '%s'...", testPassword)
-			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
-			if err != nil {
-				return err
-			}
-			_, err = s.db.ExecContext(ctx, "UPDATE users SET password_hash = $1 WHERE id = $2", string(hashedPassword), user.ID)
-			if err != nil {
-				return err
-			}
-			log.Printf("Successfully reset password for %s", testEmail)
-		}
-
-		// Make sure they have books in their collection
+		// User exists. Make sure they have books in their collection
 		var bookCount int
 		err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM user_books WHERE user_id = $1", user.ID).Scan(&bookCount)
 		if err != nil {

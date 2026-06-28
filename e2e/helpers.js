@@ -45,6 +45,29 @@ export async function loginUser(page, email, password) {
   await expect(page).toHaveURL(new RegExp(ROUTES.books));
 }
 
+import pkg from 'pg';
+const { Client } = pkg;
+
+const dbConfig = {
+  connectionString: 'postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable'
+};
+
+/**
+ * Resets the test database by truncating tables directly using the pg client.
+ */
+export async function resetDatabase() {
+  const client = new Client(dbConfig);
+  try {
+    await client.connect();
+    await client.query('TRUNCATE TABLE users, books, user_books, removal_reasons CASCADE;');
+  } catch (err) {
+    console.error('Failed to reset test database:', err);
+    throw err;
+  } finally {
+    await client.end();
+  }
+}
+
 /**
  * Registers a user via direct background API request to bypass UI form filling.
  * The session token is read from the response and explicitly injected into the browser context.
@@ -54,6 +77,7 @@ export async function loginUser(page, email, password) {
  * @param {string} password
  */
 export async function registerUserViaAPI(request, page, email, password) {
+  await resetDatabase();
   const res = await request.post('http://localhost:8080/api/auth/register', {
     data: { email, password },
     headers: {

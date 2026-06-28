@@ -1,1 +1,13 @@
-cd web-client && npm run lint
+echo "=== Running Frontend Linting ==="
+cd web-client && npm run lint || exit 1
+
+echo "=== Running Frontend Unit Tests ==="
+npm test || exit 1
+
+echo "=== Running Backend Unit Tests ==="
+cd ../server && go test -count=1 ./... || exit 1
+
+echo "=== Running E2E Tests ==="
+cd .. && make test-e2e || exit 1
+
+echo "=== All checks passed! ==="

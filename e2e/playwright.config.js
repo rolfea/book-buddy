@@ -23,10 +23,10 @@ export default defineConfig({
         DATABASE_URL: 'postgres://bookbuddy:bookbuddy@localhost:5434/bookbuddy?sslmode=disable',
         JWT_SECRET: 'change_me_to_a_long_random_string_at_least_32_chars',
         JWT_EXPIRY_HOURS: '72',
-        OPEN_LIBRARY_BASE_URL: 'https://openlibrary.org',
+        OPEN_LIBRARY_BASE_URL: 'http://localhost:8080',
         SECURE_COOKIES: 'false',
         CORS_ALLOWED_ORIGINS: 'http://localhost:8081',
-        APP_ENV: 'local',
+        APP_ENV: 'test',
       },
     },
     {
@@ -35,6 +35,9 @@ export default defineConfig({
       url: 'http://localhost:8081',
       reuseExistingServer: !process.env.CI,
       timeout: 15 * 1000,
+      env: {
+        APP_ENV: 'test',
+      },
     }
   ],
   projects: [

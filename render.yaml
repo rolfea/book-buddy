@@ -29,6 +29,15 @@ services:
           property: url
       - key: SECURE_COOKIES
         value: true
+      - key: AUTH0_DOMAIN
+        sync: false
+      - key: AUTH0_CLIENT_ID
+        sync: false
+      - key: AUTH0_CLIENT_SECRET
+        sync: false
+      - key: AUTH0_AUDIENCE
+        sync: false
+
 
   # Frontend Web Client
   - type: static
@@ -44,3 +53,7 @@ services:
           type: web
           name: book-app-server
           property: url
+      - key: AUTH0_DOMAIN
+        sync: false
+      - key: AUTH0_CLIENT_ID
+        sync: false

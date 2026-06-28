@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { makeUniqueEmail, registerUser, ROUTES } from '../helpers.js';
+import { makeUniqueEmail, registerUser, resetDatabase, ROUTES } from '../helpers.js';
 
 test.describe('Routing & Outage Resilience', () => {
+  test.beforeEach(async () => {
+    await resetDatabase();
+  });
   
   test('should redirect unauthenticated guest users to login', async ({ page }) => {
     // 1. Attempt to access books page directly

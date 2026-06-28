@@ -4,6 +4,8 @@ import { Window } from "happy-dom";
 
 // Set up DOM globals before importing the component.
 const win = new Window({ url: "http://localhost" });
+win.AUTH0_DOMAIN = "dev-dpr7adyud2sewfbo.us.auth0.com";
+win.AUTH0_CLIENT_ID = "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
 global.window = win;
 global.document = win.document;
 global.HTMLElement = win.HTMLElement;
@@ -11,11 +13,53 @@ global.customElements = win.customElements;
 global.CustomEvent = win.CustomEvent;
 global.location = win.location;
 
-// Mock fetch
-let mockResponse = { ok: true, status: 200, body: {} };
-global.fetch = async () => {
-  const { ok, status, body } = mockResponse;
-  return { ok, status, json: async () => body };
+// Mock window.crypto
+global.window.crypto = {
+  getRandomValues: (array) => {
+    for (let i = 0; i < array.length; i++) {
+      // eslint-disable-next-line security/detect-object-injection
+      array[i] = Math.floor(Math.random() * 0xffffffff);
+    }
+    return array;
+  },
+  subtle: {
+    digest: async (_algo, _data) => new Uint8Array([1, 2, 3])
+  }
+};
+
+// Mock sessionStorage
+global.sessionStorage = {
+  setItem: () => {},
+  getItem: () => "mock",
+  removeItem: () => {}
+};
+
+// Mock window.auth0
+win.auth0 = {
+  createAuth0Client: async (config) => {
+    return {
+      loginWithRedirect: async (options) => {
+        const domain = config.domain;
+        const clientId = config.clientId;
+        const redirectUri = options?.authorizationParams?.redirect_uri || config.authorizationParams?.redirect_uri || "";
+        const screenHint = options?.authorizationParams?.screen_hint || "";
+        
+        let url = `https://${domain}/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        if (screenHint) {
+          url += `&screen_hint=${screenHint}`;
+        }
+        win.location.assign(url);
+      },
+      logout: async (options) => {
+        const domain = config.domain;
+        const clientId = config.clientId;
+        const returnTo = options?.logoutParams?.returnTo || "";
+        
+        const url = `https://${domain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(returnTo)}`;
+        win.location.assign(url);
+      }
+    };
+  }
 };
 
 await import("../components/auth-form.js");
@@ -32,14 +76,13 @@ function mountForm(mode) {
 describe("auth-form", () => {
   beforeEach(() => {
     win.document.body.innerHTML = "";
-    mockResponse = { ok: true, status: 200, body: {} };
     win.location.hash = "";
   });
 
   test("renders login form by default", () => {
     const formEl = mountForm();
-    const button = formEl.querySelector('button[type="submit"]');
-    assert.equal(button.textContent, "Login");
+    const button = formEl.querySelector('#auth-submit-btn');
+    assert.equal(button.textContent, "Sign In via Auth0");
     
     const switchContainer = formEl.querySelector(".auth-switch-container");
     const link = switchContainer.querySelector("a");
@@ -49,8 +92,8 @@ describe("auth-form", () => {
 
   test("renders register form when mode attribute is register", () => {
     const formEl = mountForm("register");
-    const button = formEl.querySelector('button[type="submit"]');
-    assert.equal(button.textContent, "Register");
+    const button = formEl.querySelector('#auth-submit-btn');
+    assert.equal(button.textContent, "Sign Up via Auth0");
     
     const switchContainer = formEl.querySelector(".auth-switch-container");
     const p = switchContainer.querySelector("p");
@@ -60,92 +103,22 @@ describe("auth-form", () => {
     assert.equal(link.textContent, "Sign in");
   });
 
-  test("submits login form and updates hash on success", async () => {
+  test("clicking Auth0 button triggers login redirect", async () => {
     const formEl = mountForm("login");
-    const form = formEl.querySelector("form");
-    
-    // Fill in email and password
-    form.querySelector('input[name="email"]').value = "test@example.com";
-    form.querySelector('input[name="password"]').value = "password123";
+    const button = formEl.querySelector('#auth-submit-btn');
 
-    const apiCalls = [];
-    global.fetch = async (url, options) => {
-      apiCalls.push({ url, options });
-      if (url.includes("/auth/login")) {
-        return { ok: true, status: 200, json: async () => ({ token: "fake-jwt" }) };
+    let redirected = false;
+    win.location.assign = (url) => {
+      if (url.includes("/authorize")) {
+        redirected = true;
       }
-      if (url.includes("/auth/me")) {
-        return { ok: true, status: 200, json: async () => ({ id: "1", email: "test@example.com" }) };
-      }
-      return { ok: false, status: 404 };
     };
 
-    // Trigger form submit
-    const submitEvent = new win.Event("submit", { bubbles: true, cancelable: true });
-    form.dispatchEvent(submitEvent);
+    button.click();
 
-    // Wait a brief tick for async handler to run
+    // Wait a brief tick for async handler
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    assert.ok(apiCalls.some(call => call.url.includes("/auth/login")));
-    assert.equal(win.location.hash, "#/books");
-  });
-
-  test("submits register form and updates hash on success", async () => {
-    const formEl = mountForm("register");
-    const form = formEl.querySelector("form");
-    
-    form.querySelector('input[name="email"]').value = "new@example.com";
-    form.querySelector('input[name="password"]').value = "password123";
-
-    const apiCalls = [];
-    global.fetch = async (url, options) => {
-      apiCalls.push({ url, options });
-      if (url.includes("/auth/register")) {
-        return { ok: true, status: 200, json: async () => ({ token: "fake-jwt" }) };
-      }
-      if (url.includes("/auth/me")) {
-        return { ok: true, status: 200, json: async () => ({ id: "2", email: "new@example.com" }) };
-      }
-      return { ok: false, status: 404 };
-    };
-
-    const submitEvent = new win.Event("submit", { bubbles: true, cancelable: true });
-    form.dispatchEvent(submitEvent);
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    assert.ok(apiCalls.some(call => call.url.includes("/auth/register")));
-    assert.equal(win.location.hash, "#/books");
-  });
-
-  test("displays error message on form submission failure", async () => {
-    const formEl = mountForm("login");
-    const form = formEl.querySelector("form");
-    const errorEl = form.querySelector(".error");
-    
-    form.querySelector('input[name="email"]').value = "bad@example.com";
-    form.querySelector('input[name="password"]').value = "wrong";
-
-    global.fetch = async (url) => {
-      if (url.includes("/auth/login")) {
-        return {
-          ok: false,
-          status: 401,
-          json: async () => ({ error: "Invalid credentials" }),
-        };
-      }
-      return { ok: false, status: 404 };
-    };
-
-    assert.ok(errorEl.hidden);
-
-    const submitEvent = new win.Event("submit", { bubbles: true, cancelable: true });
-    form.dispatchEvent(submitEvent);
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    assert.equal(errorEl.hidden, false);
-    assert.equal(errorEl.textContent, "Invalid credentials");
+    assert.ok(redirected);
   });
 });

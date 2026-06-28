@@ -39,12 +39,16 @@ DELETE FROM user_books
 WHERE id = $1 AND user_id = $2;
 
 -- name: CreateUser :one
-INSERT INTO users (email, password_hash)
-VALUES ($1, $2)
+INSERT INTO users (email, external_id, external_provider)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = $1;
+
+-- name: GetUserByExternalID :one
+SELECT * FROM users WHERE external_id = $1;
+
 
 -- name: GetBookByISBN :one
 SELECT * FROM books

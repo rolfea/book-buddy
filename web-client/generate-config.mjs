@@ -1,7 +1,15 @@
 import fs from 'fs';
 
 const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8080';
-const content = `window.API_BASE_URL = "${apiBaseUrl}";\n`;
+const auth0Domain = process.env.AUTH0_DOMAIN || 'dev-dpr7adyud2sewfbo.us.auth0.com';
+const auth0ClientID = process.env.AUTH0_CLIENT_ID || 'sxAckgOU1BtWidrVdkvIqptbK3srOa7a';
+const isTest = process.env.APP_ENV === 'test' ? 'true' : 'false';
+
+const content = `window.API_BASE_URL = "${apiBaseUrl}";
+window.AUTH0_DOMAIN = "${auth0Domain}";
+window.AUTH0_CLIENT_ID = "${auth0ClientID}";
+window.IS_TEST = ${isTest};
+`;
 
 fs.writeFileSync('config.js', content);
-console.log(`config.js generated with API_BASE_URL=${apiBaseUrl}`);
+console.log(`config.js generated with API_BASE_URL=${apiBaseUrl}, AUTH0_DOMAIN=${auth0Domain}, AUTH0_CLIENT_ID=${auth0ClientID}`);

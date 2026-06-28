@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { makeUniqueEmail, registerUser, loginUser, ROUTES } from '../helpers.js';
+import { makeUniqueEmail, registerUser, loginUser, resetDatabase, ROUTES } from '../helpers.js';
 
 test.describe('Authentication Flow', () => {
+  test.beforeEach(async () => {
+    await resetDatabase();
+  });
+
   test('should register a new user, redirect to books page, and allow logging out', async ({ page }) => {
     const testEmail = makeUniqueEmail();
     const testPassword = 'Password123!';
@@ -22,7 +26,7 @@ test.describe('Authentication Flow', () => {
 
     // Assert redirection back to login
     await expect(page).toHaveURL(new RegExp(ROUTES.login));
-    await expect(page.locator('h1')).toHaveText('Login');
+    await expect(page.locator('auth-form[mode="login"] h2')).toHaveText('Sign in to Book Buddy');
   });
 
   test('should log in successfully with an existing user', async ({ page }) => {
@@ -43,7 +47,7 @@ test.describe('Authentication Flow', () => {
 
   test('should fail to login with wrong credentials and display error message', async ({ page }) => {
     await page.goto(ROUTES.login);
-    await expect(page.locator('h1')).toHaveText('Login');
+    await expect(page.locator('auth-form[mode="login"] h2')).toHaveText('Sign in to Book Buddy');
 
     // Attempt login with invalid user
     await page.fill('auth-form[mode="login"] input[name="email"]', 'wrong-user@example.com');
