@@ -1,16 +1,17 @@
 import { isLoggedIn, checkSession, logout } from './auth.js';
+import { ROUTES } from './routes.js';
 
 const routes = {
-  '/login': () => import('./pages/login.js'),
-  '/register': () => import('./pages/register.js'),
-  '/books': () => import('./pages/books.js'),
-  '/scanner': () => import('./pages/scanner.js'),
+  [ROUTES.login]: () => import('./pages/login.js'),
+  [ROUTES.register]: () => import('./pages/register.js'),
+  [ROUTES.books]: () => import('./pages/books.js'),
+  [ROUTES.scanner]: () => import('./pages/scanner.js'),
 };
 
-const authRequired = new Set(['/books', '/scanner']);
+const authRequired = new Set([ROUTES.books, ROUTES.scanner]);
 
 function currentRoute() {
-  const hash = (location.hash.slice(1) || '/login').split('?')[0];
+  const hash = (location.hash.slice(1) || ROUTES.login).split('?')[0];
   return hash.startsWith('/') ? hash : '/' + hash;
 }
 
@@ -48,16 +49,16 @@ async function navigate() {
   const app = document.getElementById('app');
 
   if (authRequired.has(route) && !isLoggedIn()) {
-    location.hash = '#/login';
+    location.hash = '#' + ROUTES.login;
     return;
   }
 
-  if ((route === '/login' || route === '/register') && isLoggedIn()) {
-    location.hash = '#/books';
+  if ((route === ROUTES.login || route === ROUTES.register) && isLoggedIn()) {
+    location.hash = '#' + ROUTES.books;
     return;
   }
 
-  const loader = routes[route] || routes['/login'];
+  const loader = routes[route] || routes[ROUTES.login];
   try {
     const mod = await loader();
     app.innerHTML = '';
@@ -103,7 +104,7 @@ async function init() {
   await checkSession();
 
   // 3. Initial navigation
-  if (!location.hash) location.hash = '#/login';
+  if (!location.hash) location.hash = '#' + ROUTES.login;
   navigate();
 }
 

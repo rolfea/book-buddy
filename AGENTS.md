@@ -83,6 +83,14 @@ npm test
 
 ## Coding Standards & Rules
 
+### Test-Driven Development (TDD) & Red-Green-Refactor Workflow
+All future features, bug fixes, or behavioral changes implemented by agents working in this repository MUST strictly follow the **Red-Green-Refactor** development workflow:
+1. **Red (Failing Stage)**: Write a failing unit, integration, or E2E test that describes the new feature or captures the regression bug *before* making any logic changes. Run the test suite and confirm that the test fails.
+   - *E2E context*: For complex client-server user journeys (e.g., session flow redirections, scanning flow alerts, or PWA offline sync), root-level E2E specs in `e2e/` can and should compose part of the "Red" tests.
+   - *Unit/Integration context*: For standalone backend services, query wrappers, or pure frontend functions, write failing unit tests in `server/` (`*_test.go`) or `web-client/test/` to serve as the initial fail baseline.
+2. **Green (Passing Stage)**: Implement the minimum amount of functional code necessary to make the new test pass. Do not write unneeded code.
+3. **Refactor (Clean-up Stage)**: Refactor and clean up the implementation (remove redundancy, optimize DB transactions, resolve lints) while maintaining all test suite assertions as passing.
+
 ### Go Standards
 - Prefer standard library over external frameworks.
 - Use `sqlc` for all database interactions; do not hand-write DB access code in the `query` package.
