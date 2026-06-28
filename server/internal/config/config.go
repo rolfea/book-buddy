@@ -48,8 +48,8 @@ func Load() (*Config, error) {
 
 	// We only require Auth0 in staging/production environments
 	if cfg.Environment == "production" || cfg.Environment == "staging" {
-		if cfg.Auth0Domain == "" || cfg.Auth0ClientID == "" || cfg.Auth0ClientSecret == "" {
-			return nil, fmt.Errorf("AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET are required in %s environment", cfg.Environment)
+		if cfg.Auth0Domain == "" || cfg.Auth0ClientID == "" {
+			return nil, fmt.Errorf("AUTH0_DOMAIN and AUTH0_CLIENT_ID are required in %s environment", cfg.Environment)
 		}
 	}
 
