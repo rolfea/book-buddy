@@ -7,8 +7,12 @@ export async function getAuth0Client() {
   if (auth0Client) {
     return auth0Client;
   }
-  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "dev-dpr7adyud2sewfbo.us.auth0.com";
-  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
+  const domain = typeof window !== "undefined" ? window.AUTH0_DOMAIN : "";
+  const clientId = typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "";
+
+  if (!domain || !clientId) {
+    throw new Error("Auth0 configuration missing (AUTH0_DOMAIN or AUTH0_CLIENT_ID)");
+  }
 
   if (typeof window !== "undefined" && window.auth0) {
     auth0Client = await window.auth0.createAuth0Client({
@@ -101,8 +105,12 @@ export async function redirectToLogin(screenHint = "") {
   }
 
   // Fallback behavior if SDK is not available (e.g. static environments or unit tests)
-  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "dev-dpr7adyud2sewfbo.us.auth0.com";
-  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
+  const domain = typeof window !== "undefined" ? window.AUTH0_DOMAIN : "";
+  const clientId = typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "";
+
+  if (!domain || !clientId) {
+    throw new Error("Auth0 configuration missing (AUTH0_DOMAIN or AUTH0_CLIENT_ID)");
+  }
 
   const state = generateRandomString(16);
   const codeVerifier = generateRandomString(43);
@@ -161,8 +169,12 @@ export async function logout() {
     return;
   }
 
-  const domain = (typeof window !== "undefined" ? window.AUTH0_DOMAIN : "") || "dev-dpr7adyud2sewfbo.us.auth0.com";
-  const clientId = (typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "") || "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
+  const domain = typeof window !== "undefined" ? window.AUTH0_DOMAIN : "";
+  const clientId = typeof window !== "undefined" ? window.AUTH0_CLIENT_ID : "";
+
+  if (!domain || !clientId) {
+    throw new Error("Auth0 configuration missing (AUTH0_DOMAIN or AUTH0_CLIENT_ID)");
+  }
   const returnTo = typeof window !== "undefined" ? window.location.origin : "http://localhost:8081";
 
   const logoutUrl = `https://${domain}/v2/logout?` + new URLSearchParams({

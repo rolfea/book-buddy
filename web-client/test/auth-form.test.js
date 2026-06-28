@@ -4,6 +4,8 @@ import { Window } from "happy-dom";
 
 // Set up DOM globals before importing the component.
 const win = new Window({ url: "http://localhost" });
+win.AUTH0_DOMAIN = "dev-dpr7adyud2sewfbo.us.auth0.com";
+win.AUTH0_CLIENT_ID = "sxAckgOU1BtWidrVdkvIqptbK3srOa7a";
 global.window = win;
 global.document = win.document;
 global.HTMLElement = win.HTMLElement;

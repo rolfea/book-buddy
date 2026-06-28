@@ -13,7 +13,9 @@ global.window = {
   location: {
     origin: "http://localhost:8081",
     assign: () => {}
-  }
+  },
+  AUTH0_DOMAIN: "dev-dpr7adyud2sewfbo.us.auth0.com",
+  AUTH0_CLIENT_ID: "sxAckgOU1BtWidrVdkvIqptbK3srOa7a",
 };
 global.location = global.window.location;
 
