@@ -86,6 +86,24 @@ func main() {
 		}
 	})
 
+	// OpenLibrary API mock for E2E testing
+	mux.HandleFunc("GET /api/books", func(w http.ResponseWriter, r *http.Request) {
+		bibkeys := r.URL.Query().Get("bibkeys")
+		if !strings.HasPrefix(bibkeys, "ISBN:") {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		isbn := strings.TrimPrefix(bibkeys, "ISBN:")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(fmt.Sprintf(`{
+			"ISBN:%s": {
+				"title": "Using SQLite",
+				"authors": [{"name": "Jay A. Kreibich"}],
+				"cover": {"large": "https://covers.openlibrary.org/b/id/6487543-L.jpg"}
+			}
+		}`, isbn)))
+	})
+
 	// Auth routes (no auth middleware)
 	mux.HandleFunc("POST /api/auth/callback", authCtrl.Callback)
 	mux.HandleFunc("POST /api/auth/logout", authCtrl.Logout)
