@@ -22,7 +22,7 @@ test.describe('Authentication Flow', () => {
 
     // Assert redirection back to login
     await expect(page).toHaveURL(new RegExp(ROUTES.login));
-    await expect(page.locator('h1')).toHaveText('Login');
+    await expect(page.locator('auth-form[mode="login"] h2')).toHaveText('Sign in to Book Buddy');
   });
 
   test('should log in successfully with an existing user', async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe('Authentication Flow', () => {
 
   test('should fail to login with wrong credentials and display error message', async ({ page }) => {
     await page.goto(ROUTES.login);
-    await expect(page.locator('h1')).toHaveText('Login');
+    await expect(page.locator('auth-form[mode="login"] h2')).toHaveText('Sign in to Book Buddy');
 
     // Attempt login with invalid user
     await page.fill('auth-form[mode="login"] input[name="email"]', 'wrong-user@example.com');

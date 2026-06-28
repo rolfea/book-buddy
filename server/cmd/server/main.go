@@ -89,6 +89,8 @@ func main() {
 	// Auth routes (no auth middleware)
 	mux.HandleFunc("POST /api/auth/callback", authCtrl.Callback)
 	mux.HandleFunc("POST /api/auth/logout", authCtrl.Logout)
+	mux.HandleFunc("POST /api/auth/register", authCtrl.Register)
+	mux.HandleFunc("POST /api/auth/login", authCtrl.Login)
 
 	// Protected routes
 	requireAuth := middleware.RequireAuth(authProvider, store)

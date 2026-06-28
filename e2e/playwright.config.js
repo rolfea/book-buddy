@@ -26,7 +26,7 @@ export default defineConfig({
         OPEN_LIBRARY_BASE_URL: 'https://openlibrary.org',
         SECURE_COOKIES: 'false',
         CORS_ALLOWED_ORIGINS: 'http://localhost:8081',
-        APP_ENV: 'local',
+        APP_ENV: 'test',
       },
     },
     {
@@ -35,6 +35,9 @@ export default defineConfig({
       url: 'http://localhost:8081',
       reuseExistingServer: !process.env.CI,
       timeout: 15 * 1000,
+      env: {
+        APP_ENV: 'test',
+      },
     }
   ],
   projects: [

@@ -197,3 +197,84 @@ func (c *AuthController) Me(w http.ResponseWriter, r *http.Request) {
 		"email": claims.Email,
 	})
 }
+
+type authRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type authResponse struct {
+	Token string `json:"token"`
+}
+
+func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
+	var req authRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Email == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "email and password required")
+		return
+	}
+
+	ctx := r.Context()
+	user, err := c.store.GetUserByExternalID(ctx, "test|"+req.Email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			user, err = c.store.CreateUser(ctx, query.CreateUserParams{
+				Email:            req.Email,
+				ExternalID:       "test|" + req.Email,
+				ExternalProvider: "test-provider",
+			})
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "could not create user")
+				return
+			}
+		} else {
+			writeError(w, http.StatusInternalServerError, "database error")
+			return
+		}
+	}
+
+	token, err := c.provider.Sign(user.ExternalID, user.Email)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not sign token")
+		return
+	}
+
+	c.setAuthCookie(w, token)
+	writeJSON(w, http.StatusCreated, authResponse{Token: token})
+}
+
+func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
+	var req authRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Email == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "email and password required")
+		return
+	}
+
+	ctx := r.Context()
+	user, err := c.store.GetUserByExternalID(ctx, "test|"+req.Email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "database error")
+		return
+	}
+
+	token, err := c.provider.Sign(user.ExternalID, user.Email)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not sign token")
+		return
+	}
+
+	c.setAuthCookie(w, token)
+	writeJSON(w, http.StatusOK, authResponse{Token: token})
+}
