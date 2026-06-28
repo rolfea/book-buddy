@@ -52,7 +52,12 @@ func main() {
 		issuer = fmt.Sprintf("https://%s/", cfg.Auth0Domain)
 	}
 
-	authProvider, err := auth.NewIDPAuthProvider(jwksURI, issuer, cfg.Auth0Audience, cfg.JWTSecret)
+	var fallbackSecret string
+	if cfg.Environment != "production" && cfg.Environment != "staging" {
+		fallbackSecret = cfg.JWTSecret
+	}
+
+	authProvider, err := auth.NewIDPAuthProvider(jwksURI, issuer, cfg.Auth0Audience, fallbackSecret)
 	if err != nil {
 		log.Fatalf("auth provider init: %v", err)
 	}
